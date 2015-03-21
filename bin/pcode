@@ -1,0 +1,12 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use lib qw( /home/ceade/src/personal/perl/pcode/lib );
+use Carp;
+$SIG{__DIE__} = \&Carp::confess;
+$SIG{__WARN__} = \&Carp::confess;
+use Pcode::App;
+
+my $app = Pcode::App->new();
+$app->run;
