@@ -49,6 +49,20 @@ has 'height' => (
     documentation => "Window height",
 );
 
+has 'da_width' => (
+    is  => 'rw',
+    isa => 'Int',
+    default => 0,
+    documentation => "Drawing Area width",
+);
+
+has 'da_height' => (
+    is  => 'rw',
+    isa => 'Int',
+    default => 0,
+    documentation => "Drawing Area height",
+);
+
 has 'x_offset' => (
     is  => 'rw',
     isa => 'Int',
@@ -137,14 +151,14 @@ sub BUILD {
     my $vbox = Gtk2::VBox->new( FALSE, 0 );
 
     $self->da( Gtk2::DrawingArea->new );
-    $self->da->size( $width, $height );
+    #$self->da->size( $width, $height );
     $self->da->signal_connect( expose_event => sub { $self->render( @_ ) } );
 
     my $side_menu = $self->build_side_menu;
 
     $hbox->pack_start( $side_menu, FALSE, FALSE, 0 );
-    $hbox->pack_start( $self->da, FALSE, FALSE, 0 );
-    $vbox->pack_start( $hbox, FALSE, FALSE, 0 );
+    $hbox->pack_start( $self->da, TRUE, TRUE, 0 );
+    $vbox->pack_start( $hbox, TRUE, TRUE, 0 );
 
     $self->da->set_events( [
         'exposure-mask',
@@ -229,7 +243,7 @@ sub motion_notify {
 
 sub invalidate {
     my ( $self ) = @_;
-    my $update_rect = Gtk2::Gdk::Rectangle->new( 0, 0, $self->width, $self->height );
+    my $update_rect = Gtk2::Gdk::Rectangle->new( 0, 0, $self->da_width, $self->da_height );
     $self->da->window->invalidate_rect( $update_rect, FALSE );
 }
 
@@ -454,11 +468,7 @@ sub arc_mode_click {
 
 sub create_surface {
     my ( $self ) = @_;
-
-    my $width = $self->width;
-    my $height = $self->height;
-
-    my $surface = Cairo::ImageSurface->create( 'argb32', $width, $height );
+    my $surface = Cairo::ImageSurface->create( 'argb32', $self->da_width, $self->da_height );
     $self->surface( $surface );
 }
 
@@ -615,6 +625,11 @@ sub translate_from_screen_coords {
 
 sub render {
     my ( $self, $widget, $event ) = @_;
+
+    my ( $da_width, $da_height ) = $self->da->window->get_size;
+    $self->da_width( $da_width );
+    $self->da_height( $da_height );
+
     $self->do_cairo_drawing;
     my $cr = Gtk2::Gdk::Cairo::Context->create( $widget->window );
     $cr->set_source_surface( $self->surface(), 0, 0 );
