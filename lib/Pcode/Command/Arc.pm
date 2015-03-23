@@ -45,6 +45,8 @@ has 'dashed' => (
     documentation => "Is the line dashed",
 );
 
+use constant M_PI => 3.14159265;
+
 sub properties {
     my ( $self ) = @_;
     return [
@@ -60,6 +62,33 @@ sub properties {
         },
     ];
 }
+
+around 'radius' => sub {
+    my ( $orig, $self, $r ) = @_;
+
+    return $self->$orig() if !defined $r;
+
+    if ( $self->dashed ) {
+        return $self->$orig( $r );
+    }
+
+    my $start = $self->start;
+    my $end   = $self->end;
+
+    my $sx = $start->X;
+    my $sy = $start->Y;
+
+    my $ex = $end->X;
+    my $ey = $end->Y;
+
+    my $q = sqrt( ( $ex - $sx ) ** 2 + ( $ey - $sy ) ** 2 );
+
+    if ( ( $r * 2 ) < $q ) {
+        $r = $q / 2;
+    }
+
+    return $self->$orig( $r );
+};
 
 sub distance_to_point {
     my ( $self, $point ) = @_;
@@ -89,6 +118,39 @@ sub distance_to_point {
     return $dist;
 }
 
+sub point_within_arc {
+    my ( $self, $point ) = @_;
+
+    my $start  = $self->start;
+    my $end    = $self->end;
+    my $center = $self->center;
+
+    my $start_angle = $center->angle_between( $start );
+    my $end_angle   = $center->angle_between( $end );
+    my $point_angle = $center->angle_between( $point );
+
+    my $twopi = M_PI * 2;
+
+    $start_angle = $twopi + $start_angle if $start_angle < 0;
+    $end_angle   = $twopi + $end_angle   if $end_angle   < 0;
+    $point_angle = $twopi + $point_angle if $point_angle < 0;
+
+    my $result = 0;
+    my $larger_angle;
+    my $smaller_angle;
+    if ( $start_angle > $end_angle ) {
+        $larger_angle = $start_angle;
+        $smaller_angle = $end_angle;
+    }
+    else {
+        $larger_angle = $end_angle;
+        $smaller_angle = $start_angle;
+    }
+    $result = 1 if $point_angle >= $smaller_angle && $point_angle <= $larger_angle;
+
+    return $result;
+}
+
 sub center {
     my ( $self ) = @_;
 
@@ -107,6 +169,11 @@ sub center {
     my $q = sqrt( ( $ex - $sx ) ** 2 + ( $ey - $sy ) ** 2 );
 
     return if $q < 1;
+
+    if ( ( $r * 2 ) < $q ) {
+        $r = $q / 2;
+        $self->radius( $r );
+    }
 
     # the halfway point between the two
     my $x3 = ( $sx + $ex ) / 2;
@@ -269,8 +336,8 @@ sub render {
 
     $cr->restore;
 
-    $start->render( $app, $cr );
-    $end->render( $app, $cr );
+    $start->render( $app, $cr, 0 );
+    $end->render( $app, $cr, 1 );
 }
 
 1;

@@ -17,4 +17,11 @@ sub append {
     push @{ $list }, $commandlistitem;
 }
 
+sub clear {
+    my ( $self ) = @_;
+    my $list = $self->list;
+    $list = [];
+    $self->list( $list );
+}
+
 1;

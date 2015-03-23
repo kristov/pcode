@@ -84,7 +84,7 @@ sub equal {
 }
 
 sub render {
-    my ( $self, $app, $cr ) = @_;
+    my ( $self, $app, $cr, $square ) = @_;
     $cr->save;
 
     my $x = $self->X;
@@ -96,7 +96,12 @@ sub render {
     }
     ( $x, $y ) = $app->translate_to_screen_coords( $x, $y );
 
-    $cr->arc( $x, $y, 5, 0, 2 * M_PI );
+    if ( $square ) {
+        $cr->rectangle( $x - 5, $y - 5, 10, 10 );
+    }
+    else {
+        $cr->arc( $x, $y, 5, 0, 2 * M_PI );
+    }
     $cr->set_line_width( 2 );
     $cr->set_source_rgb( @color );
     $cr->stroke();

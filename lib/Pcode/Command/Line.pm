@@ -159,8 +159,8 @@ sub render {
 
     $cr->restore;
 
-    $start->render( $app, $cr );
-    $end->render( $app, $cr );
+    $start->render( $app, $cr, 0 );
+    $end->render( $app, $cr, 1 );
 }
 
 1;

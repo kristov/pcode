@@ -193,11 +193,19 @@ sub build_side_menu {
     my $vbox = Gtk2::VBox->new( FALSE, 0 );
     my $line_btn = $self->build_button( "Line", 'line', sub { $self->mode( 'line' ) } );
     my $arc_btn = $self->build_button( "Arc", 'arc', sub { $self->mode( 'arc' ) } );
+    my $clr_btn = $self->build_button( "Clear", 'clr', sub { $self->clear_all } );
     $vbox->pack_start( $line_btn, FALSE, FALSE, 0 );
     $vbox->pack_start( $arc_btn, FALSE, FALSE, 0 );
+    $vbox->pack_start( $clr_btn, FALSE, FALSE, 0 );
     $vbox->pack_start( $prop_box_holder, FALSE, FALSE, 0 );
 
     return $vbox;
+}
+
+sub clear_all {
+    my ( $self ) = @_;
+    $self->command_list->clear;
+    $self->invalidate;
 }
 
 sub build_button {
@@ -393,7 +401,10 @@ sub num_widget {
         my $object = $info->{object};
         my $name = $info->{name};
 
-        $object->$name( $value );
+        my $set_value = $object->$name( $value );
+        if ( $set_value != $value ) {
+            $widget->set_value( $set_value );
+        }
         $self->invalidate;
     }, $data );
 
@@ -507,12 +518,90 @@ sub do_cairo_drawing {
     }
 
     my $command_list = $self->command_list;
-
     my $prev_command;
+    my $prev_parallel;
+    my $parallel_list = [];
+
     for my $commanditem ( @{ $command_list->list } ) {
         my $command = $commanditem->command;
-        $self->render_command( $cr, $command, $prev_command );
+        my @parallels = $self->render_command( $cr, $command, $prev_command, $prev_parallel );
+        $prev_parallel = $parallels[-1];
+        push @{ $parallel_list }, @parallels;
         $prev_command = $command;
+    }
+
+    for my $parallel ( @{ $parallel_list } ) {
+        $parallel->dashed( 1 );
+        $parallel->render( $self, $cr );
+    }
+}
+
+sub render_command {
+    my ( $self, $cr, $command, $prev_command, $prev_parallel ) = @_;
+    
+    $command->render( $self, $cr );
+
+    my $parallel = $command->parallel( 40 );
+    my @parallels;
+
+    if ( $parallel ) {
+        if ( $prev_parallel ) {
+            if ( $command->can( 'radius' ) && $prev_command->can( 'radius' ) ) {
+                my ( $point1, $point2 ) = $parallel->intersection_arc( $prev_parallel );
+                if ( $point1 && $point2 ) {
+                    my $point;
+                    if ( $command->point_within_arc( $point1 ) && $prev_command->point_within_arc( $point1 ) ) {
+                        $point = $point1;
+                        $prev_parallel->end( $point );
+                        $parallel->start( $point );
+                        push @parallels, $parallel;
+                    }
+                    elsif ( $command->point_within_arc( $point2 ) && $prev_command->point_within_arc( $point2 ) ) {
+                        $point = $point2;
+                        $prev_parallel->end( $point );
+                        $parallel->start( $point );
+                        push @parallels, $parallel;
+                    }
+                    else {
+                        my $distance1 = $point1->distance( $parallel->start );
+                        my $distance2 = $point2->distance( $parallel->start );
+                        my $closest = ( $distance1 < $distance2 ) ? $distance1 : $distance2;
+                        $point = ( $distance1 < $distance2 ) ? $point1 : $point2;
+                        if ( $closest > 80 * 2 ) {
+                            my $distance = $prev_parallel->end->distance( $parallel->start );
+                            my $radius = $distance / 2;
+                            my $new_parallel = Pcode::Command::Arc->new( {
+                                start  => $prev_parallel->end,
+                                end    => $parallel->start,
+                                radius => $radius,
+                            } );
+                            push @parallels, $new_parallel;
+                            push @parallels, $parallel;
+                        }
+                        else {
+                            $prev_parallel->end( $point );
+                            $parallel->start( $point );
+                            push @parallels, $parallel;
+                        }
+                    }
+                }
+                else {
+                    my $distance = $prev_parallel->end->distance( $parallel->start );
+                    my $radius = $distance / 2;
+                    my $new_parallel = Pcode::Command::Arc->new( {
+                        start  => $prev_parallel->end,
+                        end    => $parallel->start,
+                        radius => $radius,
+                    } );
+                    push @parallels, $new_parallel;
+                    push @parallels, $parallel;
+                }
+            }
+        }
+        else {
+            push @parallels, $parallel;
+        }
+        return @parallels;
     }
 }
 
@@ -583,29 +672,6 @@ sub detect_line_snap {
     }
 
     return $found_line;
-}
-
-sub render_command {
-    my ( $self, $cr, $command, $prev_command ) = @_;
-    $command->render( $self, $cr );
-    my $parallel = $command->parallel( 40 );
-    if ( $parallel ) {
-        if ( $prev_command ) {
-            if ( $command->can( 'radius' ) && $prev_command->can( 'radius' ) ) {
-                my $prev_parallel = $prev_command->parallel( 40 );
-                my ( $point1, $point2 ) = $parallel->intersection_arc( $prev_parallel );
-                if ( $point1 && $point2 ) {
-                    my $distance1 = $point1->distance( $parallel->start );
-                    my $distance2 = $point2->distance( $parallel->start );
-                    my $point = ( $distance1 < $distance2 ) ? $point1 : $point2;
-                    $point->render( $self, $cr );
-                    $parallel->start( $point );
-                }
-            }
-        }
-        $parallel->dashed( 1 );
-        $parallel->render( $self, $cr );
-    }
 }
 
 sub translate_to_screen_coords {
