@@ -1,27 +1,71 @@
 package Pcode::CommandList;
 
 use Moose;
-use Pcode::CommandList::Item;
+use Pcode::Point;
+with 'Pcode::Role::List';
 
-has 'list' => (
-    is => 'rw',
-    isa => 'ArrayRef',
-    default => sub { [ ] },
-    documentation => '',
-);
+sub detect_point_snap {
+    my ( $self, $app, $x, $y ) = @_;
 
-sub append {
-    my ( $self, $command ) = @_;
-    my $commandlistitem = Pcode::CommandList::Item->new( { command => $command } );
-    my $list = $self->list;
-    push @{ $list }, $commandlistitem;
+    my $current_point = Pcode::Point->new( { X => $x, Y => $y } );
+    my $found_point;
+
+    $self->foreach( sub {
+        my ( $command ) = @_;
+
+        for my $point ( $command->start, $command->end ) {
+            if ( $point->distance( $current_point ) <= 5 ) {
+                $point->hover( 1 );
+                if ( !$app->hover_point || !$app->hover_point->equal( $point ) ) {
+                    $app->invalidate;
+                    $app->hover_point( $point );
+                }
+                $found_point = $point;
+            }
+            else {
+                $point->hover( 0 );
+            }
+        }
+    } );
+
+    return $found_point;
 }
 
-sub clear {
+sub detect_line_snap {
+    my ( $self, $app, $x, $y ) = @_;
+
+    my $current_point = Pcode::Point->new( { X => $x, Y => $y } );
+    my $found_line;
+
+    $self->foreach( sub {
+        my ( $command ) = @_;
+
+        if ( $command->distance_to_point( $current_point ) <= 5 ) {
+            $command->hover( 1 );
+            if ( !$app->hover_line || !$app->hover_line->equal( $command ) ) {
+                $app->invalidate;
+                $app->hover_line( $command );
+            }
+            $found_line = $command;
+        }
+        else {
+            $command->hover( 0 );
+        }
+    } );
+
+    return $found_line;
+}
+
+sub stringify {
     my ( $self ) = @_;
-    my $list = $self->list;
-    $list = [];
-    $self->list( $list );
+
+    my @commands;
+    $self->foreach( sub {
+        my ( $command ) = @_;
+        push @commands, $command->stringify;
+    } );
+
+    return join( "\n", @commands );
 }
 
 1;

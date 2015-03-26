@@ -7,9 +7,12 @@ use Gtk2 qw( -init );
 use Glib qw( TRUE FALSE );
 
 use Pcode::Point;
-use Pcode::CommandList;
+use Pcode::Path;
+use Pcode::PathList;
 use Pcode::Command::Line;
 use Pcode::Command::Arc;
+use Pcode::App::Properties;
+use Pcode::App::SideMenu;
 
 has 'win' => (
     is  => 'rw',
@@ -33,6 +36,12 @@ has 'surface' => (
     is  => 'rw',
     isa => 'Cairo::ImageSurface',
     documentation => "Cairo surface we are drawing to",
+);
+
+has 'text' => (
+    is  => 'rw',
+    isa => 'Gtk2::TextView',
+    documentation => "Command window",
 );
 
 has 'width' => (
@@ -129,11 +138,17 @@ has 'start_point' => (
     documentation => "Current working point",
 );
 
-has 'command_list' => (
+has 'current_path' => (
     is  => 'rw',
-    isa => 'Pcode::CommandList',
-    default => sub { Pcode::CommandList->new(); },
-    documentation => "List of commands",
+    isa => 'Pcode::Path',
+    documentation => "Working path",
+);
+
+has 'paths' => (
+    is  => 'rw',
+    isa => 'Pcode::PathList',
+    default => sub { Pcode::PathList->new(); },
+    documentation => "List of paths",
 );
 
 sub BUILD {
@@ -141,6 +156,14 @@ sub BUILD {
 
     my $width = $self->width;
     my $height = $self->height;
+
+#use Pcode::Snap::Circle;
+#use Pcode::Snap::Line;
+    my $current_path = Pcode::Path->new();
+    $self->current_path( $current_path );
+    $self->paths->add( $current_path );
+#    $self->current_path->snaps->add( Pcode::Snap::Circle->new( { center => Pcode::Point->new( { X => 100, Y => 100 } ), radius => 200 } ) );
+#    $self->current_path->snaps->add( Pcode::Snap::Line->new( { start => Pcode::Point->new( { X => 100, Y => 100 } ), end => Pcode::Point->new( { X => 300, Y => 300 } ) } ) );
 
     # The graphical environment
     $self->win( Gtk2::Window->new( 'toplevel' ) );
@@ -154,11 +177,13 @@ sub BUILD {
     #$self->da->size( $width, $height );
     $self->da->signal_connect( expose_event => sub { $self->render( @_ ) } );
 
-    my $side_menu = $self->build_side_menu;
+    my $side_menu = Pcode::App::SideMenu->new( { app => $self } );
+    my $textarea = $self->build_command_area;
 
-    $hbox->pack_start( $side_menu, FALSE, FALSE, 0 );
+    $hbox->pack_start( $side_menu->widget, FALSE, FALSE, 0 );
     $hbox->pack_start( $self->da, TRUE, TRUE, 0 );
     $vbox->pack_start( $hbox, TRUE, TRUE, 0 );
+    $vbox->pack_start( $textarea, FALSE, FALSE, 0 );
 
     $self->da->set_events( [
         'exposure-mask',
@@ -181,56 +206,24 @@ sub BUILD {
     $self->win->show_all;
 }
 
-sub build_side_menu {
+sub build_command_area {
     my ( $self ) = @_;
 
-    my $prop_box = Gtk2::VBox->new( FALSE, 0 );
-    $self->prop_box( $prop_box );
+    my $scroll = Gtk2::ScrolledWindow->new( undef, undef );
+    $scroll->set_policy( 'automatic', 'automatic' );
 
-    my $prop_box_holder = Gtk2::HBox->new( FALSE, 0 );
-    $prop_box_holder->pack_start( $prop_box, FALSE, FALSE, 0 );
+    my $text = Gtk2::TextView->new();
+    $self->text( $text );
+    my $buffer = $text->get_buffer;
 
-    my $vbox = Gtk2::VBox->new( FALSE, 0 );
-    my $line_btn = $self->build_button( "Line", 'line', sub { $self->mode( 'line' ) } );
-    my $arc_btn = $self->build_button( "Arc", 'arc', sub { $self->mode( 'arc' ) } );
-    my $clr_btn = $self->build_button( "Clear", 'clr', sub { $self->clear_all } );
-    $vbox->pack_start( $line_btn, FALSE, FALSE, 0 );
-    $vbox->pack_start( $arc_btn, FALSE, FALSE, 0 );
-    $vbox->pack_start( $clr_btn, FALSE, FALSE, 0 );
-    $vbox->pack_start( $prop_box_holder, FALSE, FALSE, 0 );
-
-    return $vbox;
+    $scroll->add( $text );
+    return $scroll;
 }
 
 sub clear_all {
     my ( $self ) = @_;
-    $self->command_list->clear;
+    $self->current_path->clear;
     $self->invalidate;
-}
-
-sub build_button {
-    my ( $self, $label_txt, $icon, $handler ) = @_;
-
-    my $box = Gtk2::HBox->new( FALSE, 0 );
-    $box->set_border_width( 2 );
-
-    my $image = Gtk2::Image->new_from_file( $self->icon_to_filename( $icon ) );
-    my $label = Gtk2::Label->new( $label_txt );
-
-    $box->pack_start( $image, FALSE, FALSE, 0 );
-    $box->pack_start( $label, FALSE, FALSE, 0 );
-
-    my $button = Gtk2::Button->new();
-    $button->signal_connect( 'clicked' => $handler );
-
-    $button->add( $box );
-
-    return $button;
-}
-
-sub icon_to_filename {
-    my ( $self, $icon ) = @_;
-    return sprintf( '/home/ceade/src/personal/perl/pcode/images/%s.xpm', $icon );
 }
 
 sub motion_notify {
@@ -244,15 +237,26 @@ sub motion_notify {
     if ( $self->start_point ) {
         $self->mouse_x( $x );
         $self->mouse_y( $y );
+        $self->invalidate;
     }
-
-    $self->invalidate;
 }
 
 sub invalidate {
     my ( $self ) = @_;
     my $update_rect = Gtk2::Gdk::Rectangle->new( 0, 0, $self->da_width, $self->da_height );
     $self->da->window->invalidate_rect( $update_rect, FALSE );
+    $self->update_command_window;
+}
+
+sub update_command_window {
+    my ( $self ) = @_;
+
+    my $text = $self->text;
+    my $buffer = $text->get_buffer;
+
+    my $command_text = $self->current_path->stringify;
+
+    $buffer->set_text( $command_text );
 }
 
 sub button_clicked {
@@ -318,7 +322,9 @@ sub modal_edit_window {
 
     $self->prop_box->foreach( sub { $self->prop_box->remove( $_[0] ) } );
 
-    my $table = $self->edit_properties( $command );
+    my $props = Pcode::App::Properties->new( { object => $command, app => $self } );
+    my $table = $props->widget;
+
     if ( $table ) {
         $self->prop_box->pack_start( $table, FALSE, FALSE, 0 );
     }
@@ -326,110 +332,6 @@ sub modal_edit_window {
     return if !$table;
 
     $self->prop_box->show_all;
-}
-
-sub edit_properties {
-    my ( $self, $command ) = @_;
-
-    my @sections;
-
-    if ( $command->can( 'start' ) ) {
-        push @sections, {
-            header     => 'Start point',
-            object     => $command->start,
-            properties => $command->start->properties,
-        };
-    }
-    if ( $command->can( 'properties' ) ) {
-        push @sections, {
-            header     => 'Start point',
-            object     => $command,
-            properties => $command->properties,
-        };
-    }
-    if ( $command->can( 'end' ) ) {
-        push @sections, {
-            header     => 'End point',
-            object     => $command->end,
-            properties => $command->end->properties,
-        };
-    }
-
-    my $rows = 0;
-    for my $section ( @sections ) {
-        for my $property ( @{ $section->{properties} } ) {
-            $rows++;
-        }
-    }
-    my $table = Gtk2::Table->new( $rows, 2, FALSE );
-
-    my $count = 0;
-    for my $section ( @sections ) {
-        my $object = $section->{object};
-        for my $property ( @{ $section->{properties} } ) {
-            my $name = $property->{name};
-            my $label = Gtk2::Label->new( $property->{label} || '<unknown>' );
-            my $value = $object->$name();
-            my $widget;
-            if ( $property->{type} eq 'Num' ) {
-                $widget = $self->num_widget( $object, $name, $value );
-            }
-            elsif ( $property->{type} eq 'Bool' ) {
-                $widget = $self->bool_widget( $object, $name, $value );
-            }
-            $table->attach( $label, 0, 1, $count, $count + 1, [ 'fill' ], [ 'fill' ], 0, 0 );
-            $table->attach( $widget, 1, 2, $count, $count + 1, [ 'fill' ], [ 'fill' ], 0, 0 );
-            $count++;
-        }
-    }
-
-    return $table;
-}
-
-sub num_widget {
-    my ( $self, $object, $name, $value ) = @_;
-
-    my $adjustment = Gtk2::Adjustment->new( $value, 0, 1000, 0.01, 1, 0 );
-    my $spin = Gtk2::SpinButton->new( $adjustment, 0.5, 2 );
-
-    my $data = { object => $object, name => $name };
-
-    $adjustment->signal_connect( value_changed => sub {
-        my ( $widget, $info ) = @_;
-
-        my $value = $widget->get_value();
-        my $object = $info->{object};
-        my $name = $info->{name};
-
-        my $set_value = $object->$name( $value );
-        if ( $set_value != $value ) {
-            $widget->set_value( $set_value );
-        }
-        $self->invalidate;
-    }, $data );
-
-    return $spin;
-}
-
-sub bool_widget {
-    my ( $self, $object, $name, $value ) = @_;
-
-    my $data = { object => $object, name => $name };
-
-    my $button = Gtk2::CheckButton->new();
-    $button->set_active( $value ? TRUE : FALSE );
-    $button->signal_connect( toggled => sub {
-        my ( $widget, $info ) = @_;
-
-        my $value = $widget->get_active();
-        my $object = $info->{object};
-        my $name = $info->{name};
-
-        $object->$name( $value );
-        $self->invalidate;
-    }, $data );
-
-    return $button;
 }
 
 sub line_mode_click {
@@ -442,7 +344,8 @@ sub line_mode_click {
             start => $self->start_point,
             end   => $end_point,
         } );
-        $self->command_list->append( $new_line );
+
+        $self->current_path->append_command( $new_line );
         
         $self->start_point( undef );
         $self->invalidate;
@@ -462,11 +365,13 @@ sub arc_mode_click {
         my $r = $self->start_point->distance( $end_point );
         $r = int( $r );
 
-        $self->command_list->append( Pcode::Command::Arc->new( {
+        my $new_arc = Pcode::Command::Arc->new( {
             start  => $self->start_point,
             end    => $end_point,
             radius => $r,
-        } ) );
+        } );
+
+        $self->current_path->append_command( $new_arc );
 
         $self->start_point( undef );
         $self->invalidate;
@@ -491,7 +396,6 @@ sub do_cairo_drawing {
     my $surface = $self->surface();
     my $cr = Cairo::Context->create( $surface );
 
-    #if ( $self->draw_line ) {
     if ( $self->start_point ) {
         
         my $x = $self->mouse_x;
@@ -508,31 +412,12 @@ sub do_cairo_drawing {
 
         if ( $command ) {
             $command->render( $self, $cr );
-            my $parallel = $command->parallel( 40 );
-            if ( $parallel ) {
-                $parallel->dashed( 1 );
-                $parallel->render( $self, $cr );
-            }
         }
 
     }
 
-    my $command_list = $self->command_list;
-    my $prev_command;
-    my $prev_parallel;
-    my $parallel_list = [];
-
-    for my $commanditem ( @{ $command_list->list } ) {
-        my $command = $commanditem->command;
-        my @parallels = $self->render_command( $cr, $command, $prev_command, $prev_parallel );
-        $prev_parallel = $parallels[-1];
-        push @{ $parallel_list }, @parallels;
-        $prev_command = $command;
-    }
-
-    for my $parallel ( @{ $parallel_list } ) {
-        $parallel->dashed( 1 );
-        $parallel->render( $self, $cr );
+    if ( $self->current_path ) {
+        $self->current_path->render( $self, $cr );
     }
 }
 
@@ -597,6 +482,9 @@ sub render_command {
                     push @parallels, $parallel;
                 }
             }
+            else {
+                push @parallels, $parallel;
+            }
         }
         else {
             push @parallels, $parallel;
@@ -619,59 +507,12 @@ sub temporary_arc {
 
 sub detect_point_snap {
     my ( $self, $x, $y ) = @_;
-
-    my $current_point = Pcode::Point->new( { X => $x, Y => $y } );
-
-    my $command_list = $self->command_list;
-
-    my $found_point;
-
-    for my $commanditem ( @{ $command_list->list } ) {
-        my $command = $commanditem->command;
-
-        for my $point ( $command->start, $command->end ) {
-            if ( $point->distance( $current_point ) <= 5 ) {
-                $point->hover( 1 );
-                if ( !$self->hover_point || !$self->hover_point->equal( $point ) ) {
-                    $self->invalidate;
-                    $self->hover_point( $point );
-                }
-                $found_point = $point;
-            }
-            else {
-                $point->hover( 0 );
-            }
-        }
-    }
-
-    return $found_point;
+    return $self->current_path->detect_point_snap( $self, $x, $y );
 }
 
 sub detect_line_snap {
     my ( $self, $x, $y ) = @_;
-
-    my $current_point = Pcode::Point->new( { X => $x, Y => $y } );
-
-    my $command_list = $self->command_list;
-
-    my $found_line;
-
-    for my $commanditem ( @{ $command_list->list } ) {
-        my $command = $commanditem->command;
-        if ( $command->distance_to_point( $current_point ) <= 5 ) {
-            $command->hover( 1 );
-            if ( !$self->hover_line || !$self->hover_line->equal( $command ) ) {
-                $self->invalidate;
-                $self->hover_line( $command );
-            }
-            $found_line = $command;
-        }
-        else {
-            $command->hover( 0 );
-        }
-    }
-
-    return $found_line;
+    return $self->current_path->detect_line_snap( $self, $x, $y );
 }
 
 sub translate_to_screen_coords {
