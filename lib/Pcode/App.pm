@@ -151,19 +151,50 @@ has 'paths' => (
     documentation => "List of paths",
 );
 
+sub test_snaps {
+    my ( $self ) = @_;
+
+use Pcode::Snap::Circle;
+use Pcode::Snap::Line;
+
+    my $current_path = Pcode::Path->new();
+    $self->current_path( $current_path );
+    $self->paths->add( $current_path );
+    $self->current_path->append_snap( Pcode::Snap::Circle->new( {
+        center => Pcode::Point->new( { X => 200, Y => 400 } ),
+        radius => 200,
+    } ) );
+    $self->current_path->append_snap( Pcode::Snap::Circle->new( {
+        center => Pcode::Point->new( { X => 400, Y => 400 } ),
+        radius => 250,
+    } ) );
+    $self->current_path->append_snap( Pcode::Snap::Line->new( {
+        start => Pcode::Point->new( { X => 100, Y => 100 } ),
+        end   => Pcode::Point->new( { X => 3000, Y => 3000 } )
+    } ) );
+    $self->current_path->append_snap( Pcode::Snap::Line->new( {
+        start => Pcode::Point->new( { X => 200, Y => 100 } ),
+        end   => Pcode::Point->new( { X => 200, Y => 300 } )
+    } ) );
+    $self->current_path->append_snap( Pcode::Snap::Line->new( {
+        start => Pcode::Point->new( { X => 500, Y => 500 } ),
+        end   => Pcode::Point->new( { X => 700, Y => 300 } )
+    } ) );
+    $self->current_path->append_snap( Pcode::Snap::Line->new( {
+        start => Pcode::Point->new( { X => 900, Y => 500 } ),
+        end   => Pcode::Point->new( { X => 1000, Y => 500 } )
+    } ) );
+
+    $self->current_path->recalculate_points;
+}
+
 sub BUILD {
     my ( $self ) = @_;
 
     my $width = $self->width;
     my $height = $self->height;
 
-#use Pcode::Snap::Circle;
-#use Pcode::Snap::Line;
-    my $current_path = Pcode::Path->new();
-    $self->current_path( $current_path );
-    $self->paths->add( $current_path );
-#    $self->current_path->snaps->add( Pcode::Snap::Circle->new( { center => Pcode::Point->new( { X => 100, Y => 100 } ), radius => 200 } ) );
-#    $self->current_path->snaps->add( Pcode::Snap::Line->new( { start => Pcode::Point->new( { X => 100, Y => 100 } ), end => Pcode::Point->new( { X => 300, Y => 300 } ) } ) );
+    $self->test_snaps;
 
     # The graphical environment
     $self->win( Gtk2::Window->new( 'toplevel' ) );

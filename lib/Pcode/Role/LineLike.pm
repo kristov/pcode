@@ -18,6 +18,17 @@ has 'end' => (
 
 use constant M_PI => 3.14159265;
 
+sub intersect {
+    my ( $self, $object ) = @_;
+    if ( $object->does( 'Pcode::Role::LineLike' ) ) {
+        return $self->intersection_line( $object );
+    }
+    elsif ( $object->does( 'Pcode::Role::ArcLike' ) ) {
+        return $object->intersection_line( $self );
+    }
+    return ();
+}
+
 sub distance_to_point {
     my ( $self, $point ) = @_;
 
@@ -56,40 +67,41 @@ sub intersection_line {
     my $ls = $line->start;
     my $le = $line->end;
 
+    my $ssx = $ss->X;
+    my $ssy = $ss->Y;
+
+    my $sex = $se->X;
+    my $sey = $se->Y;
+
+    my $lsx = $ls->X;
+    my $lsy = $ls->Y;
+
+    my $lex = $ls->X;
+    my $ley = $ls->Y;
+
+    my $s1x = $se->X - $ss->X;
+    my $s1y = $se->Y - $ss->Y;
+
+    my $s2x = $le->X - $ls->X;
+    my $s2y = $le->Y - $ls->Y;
+
+    my $s = ( -$s1y * ( $ss->X - $ls->X ) + $s1x * ( $ss->Y - $ls->Y ) ) / ( -$s2x * $s1y + $s1x * $s2y );
+    my $t = (  $s2x * ( $ss->Y - $ls->Y ) - $s2y * ( $ss->X - $ls->X ) ) / ( -$s2x * $s1y + $s1x * $s2y );
+
+    if ( $s >= 0 && $s <= 1 && $t >= 0 && $t <= 1 ) {
+        my $ix = $ss->X + ( $t * $s1x );
+        my $iy = $ss->Y + ( $t * $s1y );
+        return Pcode::Point->new( { X => $ix, Y => $iy } );
+    }
+
 =item
 
-   function doLineSegmentsIntersect(p, p2, q, q2) {
-    var r = subtractPoints(p2, p);
-    var s = subtractPoints(q2, q);
-
-    var uNumerator = crossProduct(subtractPoints(q, p), r);
-    var denominator = crossProduct(r, s);
-
-    if (uNumerator == 0 && denominator == 0) {
-        // They are coLlinear
-        
-        // Do they touch? (Are any of the points equal?)
-        if (equalPoints(p, q) || equalPoints(p, q2) || equalPoints(p2, q) || equalPoints(p2, q2)) {
-            return true
-        }
-        // Do they overlap? (Are all the point differences in either direction the same sign)
-        // Using != as exclusive or
-        return ((q.x - p.x < 0) != (q.x - p2.x < 0) != (q2.x - p.x < 0) != (q2.x - p2.x < 0)) || 
-            ((q.y - p.y < 0) != (q.y - p2.y < 0) != (q2.y - p.y < 0) != (q2.y - p2.y < 0));
-    }
-
-    if (denominator == 0) {
-        // lines are paralell
-        return false;
-    }
-
-    var u = uNumerator / denominator;
-    var t = crossProduct(subtractPoints(q, p), s) / denominator;
-
-    return (t >= 0) && (t <= 1) && (u >= 0) && (u <= 1);
+    s = (-s1_y * (p0_x - p2_x) + s1_x * (p0_y - p2_y)) / (-s2_x * s1_y + s1_x * s2_y);
+    t = ( s2_x * (p0_y - p2_y) - s2_y * (p0_x - p2_x)) / (-s2_x * s1_y + s1_x * s2_y);
 
 =cut
 
+    return ();
 }
 
 sub equal {

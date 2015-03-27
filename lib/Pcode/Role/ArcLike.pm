@@ -51,6 +51,18 @@ around 'radius' => sub {
     return $self->$orig( $r );
 };
 
+sub intersect {
+    my ( $self, $object ) = @_;
+    if ( $object->does( 'Pcode::Role::LineLike' ) ) {
+        return $self->intersection_line( $object );
+    }
+    elsif ( $object->does( 'Pcode::Role::ArcLike' ) ) {
+print STDERR "arc on arc action\n";
+        return $self->intersection_arc( $object );
+    }
+    return ();
+}
+
 sub distance_to_point {
     my ( $self, $point ) = @_;
 
@@ -136,13 +148,13 @@ sub intersection_arc {
 
     if ( $d > ( $sr + $ar ) ) {
         # no solution. circles do not intersect
-        return;
+        return ();
     }
 
     my $pd = ( $sr > $ar ) ? ( $sr - $ar ) : ( $ar - $sr );
     if ( $d <= $pd ) {
         # no solution. one circle is contained in the other
-        return;
+        return ();
     }
 
     # 'point 2' is the point where the line through the circle
@@ -175,6 +187,11 @@ sub intersection_arc {
     my $point2 = Pcode::Point->new( { X => $xi_prime, Y => $yi_prime } );
 
     return ( $point1, $point2 );
+}
+
+sub intersection_line {
+    my ( $self, $line ) = @_;
+    return ();
 }
 
 1;
