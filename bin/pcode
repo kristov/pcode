@@ -7,6 +7,6 @@ use Carp;
 $SIG{__DIE__} = \&Carp::confess;
 $SIG{__WARN__} = \&Carp::confess;
 use Pcode::App;
-
-my $app = Pcode::App->new();
+my $args = $ARGV[0] ? { file => $ARGV[0] } : ();
+my $app = Pcode::App->new( $args ? $args : () );
 $app->run;
