@@ -69,12 +69,16 @@ sub render {
     $end->render( $app, $cr, 1 );
 }
 
-sub stringify {
+sub serialize {
     my ( $self ) = @_;
-    return sprintf(
-        'line([%0.4f,%0.4f],[%0.4f,%0.4f])',
-        $self->start->X, $self->start->Y,
-        $self->end->X, $self->end->Y,
+    return [ 'line', [ $self->start->X, $self->start->Y, $self->end->X, $self->end->Y ] ];
+}
+
+sub deserialize {
+    my ( $class, $x1, $y1, $x2, $y2 ) = @_;
+    return $class->new(
+        start => Pcode::Point->new( { X => $x1, Y => $y1 } ),
+        end   => Pcode::Point->new( { X => $x2, Y => $y2 } ),
     );
 }
 

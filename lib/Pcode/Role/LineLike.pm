@@ -85,8 +85,11 @@ sub intersection_line {
     my $s2x = $le->X - $ls->X;
     my $s2y = $le->Y - $ls->Y;
 
-    my $s = ( -$s1y * ( $ss->X - $ls->X ) + $s1x * ( $ss->Y - $ls->Y ) ) / ( -$s2x * $s1y + $s1x * $s2y );
-    my $t = (  $s2x * ( $ss->Y - $ls->Y ) - $s2y * ( $ss->X - $ls->X ) ) / ( -$s2x * $s1y + $s1x * $s2y );
+    my $something = ( -$s2x * $s1y + $s1x * $s2y );
+    return if $something == 0;
+
+    my $s = ( -$s1y * ( $ss->X - $ls->X ) + $s1x * ( $ss->Y - $ls->Y ) ) / $something;
+    my $t = (  $s2x * ( $ss->Y - $ls->Y ) - $s2y * ( $ss->X - $ls->X ) ) / $something;
 
     if ( $s >= 0 && $s <= 1 && $t >= 0 && $t <= 1 ) {
         my $ix = $ss->X + ( $t * $s1x );

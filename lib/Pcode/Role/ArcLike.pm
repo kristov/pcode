@@ -57,7 +57,6 @@ sub intersect {
         return $self->intersection_line( $object );
     }
     elsif ( $object->does( 'Pcode::Role::ArcLike' ) ) {
-print STDERR "arc on arc action\n";
         return $self->intersection_arc( $object );
     }
     return ();
@@ -191,7 +190,44 @@ sub intersection_arc {
 
 sub intersection_line {
     my ( $self, $line ) = @_;
-    return ();
+
+    my $ls = $line->start;
+    my $le = $line->end;
+
+    my $r = $self->radius;
+    my $c = $self->center;
+
+    my $lab = $ls->distance( $le );
+
+    my $dx = ( $le->X - $ls->X ) / $lab;
+    my $dy = ( $le->Y - $ls->Y ) / $lab;
+
+    my $t = $dx * ( $c->X - $ls->X ) + $dy * ( $c->Y - $ls->Y );
+
+    my $ex = ( $t * $dx ) + $ls->X;
+    my $ey = ( $t * $dy ) + $ls->Y;
+
+    my $lec = sqrt( ( $ex - $c->X ) ** 2 + ( $ey - $c->Y ) ** 2 );
+
+    if ( $lec < $r ) {
+        my $dt = sqrt( $r ** 2 - $lec ** 2 );
+
+        my $fx = ( $t - $dt ) * $dx + $ls->X;
+        my $fy = ( $t - $dt ) * $dy + $ls->Y;
+
+        my $gx = ( $t + $dt ) * $dx + $ls->X;
+        my $gy = ( $t + $dt ) * $dy + $ls->Y;
+
+        return (
+            Pcode::Point->new( { X => $fx, Y => $fy } ),
+            Pcode::Point->new( { X => $gx, Y => $gy } ),
+        );
+    }
+    elsif ( $lec == $r ) {
+        return (
+            Pcode::Point->new( { X => $ex, Y => $ey } ),
+        );
+    }
 }
 
 1;

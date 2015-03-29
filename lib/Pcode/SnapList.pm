@@ -29,11 +29,6 @@ sub recalculate_points {
         push @all_points, @points if @points;
     }
 
-    for my $point ( @all_points ) {
-        next if !$point;
-        print STDERR "[" . $point->X . ", " . $point->Y . "]\n";
-    }
-
     return @all_points;
 }
 

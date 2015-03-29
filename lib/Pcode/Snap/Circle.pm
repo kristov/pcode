@@ -46,4 +46,17 @@ sub render {
     $cr->restore;
 }
 
+sub serialize {
+    my ( $self ) = @_;
+    return [ 'circle', [ $self->center->X, $self->center->Y, $self->radius ] ];
+}
+
+sub deserialize {
+    my ( $class, $x1, $y1, $radius ) = @_;
+    return $class->new(
+        center => Pcode::Point->new( { X => $x1, Y => $y1 } ),
+        radius => $radius,
+    );
+}
+
 1;

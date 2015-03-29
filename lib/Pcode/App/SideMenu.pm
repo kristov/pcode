@@ -32,7 +32,7 @@ sub build_side_menu {
 
     my $vbox = Gtk2::VBox->new( FALSE, 0 );
     my $line_btn = $self->build_button( "Line", 'line', sub { $self->app->mode( 'line' ) } );
-    my $arc_btn = $self->build_button( "Arc", 'arc', sub { $self->app->mode( 'arc' ) } );
+    my $arc_btn = $self->build_button( "Arc", 'arc', sub { $self->app->codewindow->parse_code } );
     my $clr_btn = $self->build_button( "Clear", 'clr', sub { $self->app->clear_all } );
     $vbox->pack_start( $line_btn, FALSE, FALSE, 0 );
     $vbox->pack_start( $arc_btn, FALSE, FALSE, 0 );

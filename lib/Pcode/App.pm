@@ -9,10 +9,15 @@ use Glib qw( TRUE FALSE );
 use Pcode::Point;
 use Pcode::Path;
 use Pcode::PathList;
+use Pcode::SnapList;
 use Pcode::Command::Line;
 use Pcode::Command::Arc;
+use Pcode::Snap::Circle;
+use Pcode::Snap::Line;
 use Pcode::App::Properties;
 use Pcode::App::SideMenu;
+use Pcode::App::CodeWindow;
+use Pcode::App::File::Native;
 
 has 'win' => (
     is  => 'rw',
@@ -138,6 +143,20 @@ has 'start_point' => (
     documentation => "Current working point",
 );
 
+has 'snaps' => (
+    is  => 'rw',
+    isa => 'Pcode::SnapList',
+    default => sub { Pcode::SnapList->new(); },
+    documentation => "The snap list",
+);
+
+has 'snap_points' => (
+    is  => 'rw',
+    isa => 'Pcode::PointList',
+    default => sub { Pcode::PointList->new(); },
+    documentation => "The snap point list",
+);
+
 has 'current_path' => (
     is  => 'rw',
     isa => 'Pcode::Path',
@@ -151,50 +170,56 @@ has 'paths' => (
     documentation => "List of paths",
 );
 
+has 'codewindow' => (
+    is  => 'rw',
+    isa => 'Pcode::App::CodeWindow',
+    documentation => "The code editing area",
+);
+
+has 'state' => (
+    is  => 'rw',
+    isa => 'Pcode::App::File::Native',
+    documentation => 'Save app state in a file',
+);
+
+has 'file' => (
+    is  => 'rw',
+    isa => 'Str',
+    documentation => 'Working file',
+);
+
 sub test_snaps {
     my ( $self ) = @_;
 
-use Pcode::Snap::Circle;
-use Pcode::Snap::Line;
-
-    my $current_path = Pcode::Path->new();
-    $self->current_path( $current_path );
-    $self->paths->add( $current_path );
-    $self->current_path->append_snap( Pcode::Snap::Circle->new( {
-        center => Pcode::Point->new( { X => 200, Y => 400 } ),
-        radius => 200,
-    } ) );
-    $self->current_path->append_snap( Pcode::Snap::Circle->new( {
-        center => Pcode::Point->new( { X => 400, Y => 400 } ),
-        radius => 250,
-    } ) );
-    $self->current_path->append_snap( Pcode::Snap::Line->new( {
-        start => Pcode::Point->new( { X => 100, Y => 100 } ),
-        end   => Pcode::Point->new( { X => 3000, Y => 3000 } )
-    } ) );
-    $self->current_path->append_snap( Pcode::Snap::Line->new( {
+    $self->snaps->append( Pcode::Snap::Line->new( {
         start => Pcode::Point->new( { X => 200, Y => 100 } ),
         end   => Pcode::Point->new( { X => 200, Y => 300 } )
     } ) );
-    $self->current_path->append_snap( Pcode::Snap::Line->new( {
+    $self->snaps->append( Pcode::Snap::Line->new( {
         start => Pcode::Point->new( { X => 500, Y => 500 } ),
         end   => Pcode::Point->new( { X => 700, Y => 300 } )
     } ) );
-    $self->current_path->append_snap( Pcode::Snap::Line->new( {
+    $self->snaps->append( Pcode::Snap::Line->new( {
         start => Pcode::Point->new( { X => 900, Y => 500 } ),
         end   => Pcode::Point->new( { X => 1000, Y => 500 } )
     } ) );
 
-    $self->current_path->recalculate_points;
+    my @points = $self->snaps->recalculate_points;
 }
 
 sub BUILD {
+    my ( $self ) = @_;
+    $self->build_gui;
+    $self->load_file;
+}
+
+sub build_gui {    
     my ( $self ) = @_;
 
     my $width = $self->width;
     my $height = $self->height;
 
-    $self->test_snaps;
+    #$self->test_snaps;
 
     # The graphical environment
     $self->win( Gtk2::Window->new( 'toplevel' ) );
@@ -205,16 +230,17 @@ sub BUILD {
     my $vbox = Gtk2::VBox->new( FALSE, 0 );
 
     $self->da( Gtk2::DrawingArea->new );
-    #$self->da->size( $width, $height );
     $self->da->signal_connect( expose_event => sub { $self->render( @_ ) } );
 
-    my $side_menu = Pcode::App::SideMenu->new( { app => $self } );
-    my $textarea = $self->build_command_area;
+    my $side_menu  = Pcode::App::SideMenu->new( { app => $self } );
+    my $codewindow = Pcode::App::CodeWindow->new( { app => $self } );
+    $self->codewindow( $codewindow );
 
     $hbox->pack_start( $side_menu->widget, FALSE, FALSE, 0 );
     $hbox->pack_start( $self->da, TRUE, TRUE, 0 );
+    $hbox->pack_end( $codewindow->widget, FALSE, FALSE, 0 );
+
     $vbox->pack_start( $hbox, TRUE, TRUE, 0 );
-    $vbox->pack_start( $textarea, FALSE, FALSE, 0 );
 
     $self->da->set_events( [
         'exposure-mask',
@@ -237,24 +263,59 @@ sub BUILD {
     $self->win->show_all;
 }
 
-sub build_command_area {
+sub load_file {
     my ( $self ) = @_;
 
-    my $scroll = Gtk2::ScrolledWindow->new( undef, undef );
-    $scroll->set_policy( 'automatic', 'automatic' );
+    $self->state( Pcode::App::File::Native->new( { app => $self } ) );
 
-    my $text = Gtk2::TextView->new();
-    $self->text( $text );
-    my $buffer = $text->get_buffer;
-
-    $scroll->add( $text );
-    return $scroll;
+    if ( $self->file ) {
+        $self->state->load( $self->file );
+        $self->recalculate_snap_points;
+    }
+    else {
+        my $current_path = Pcode::Path->new();
+        $self->current_path( $current_path );
+        $self->paths->add( $current_path );
+    }
 }
 
 sub clear_all {
     my ( $self ) = @_;
     $self->current_path->clear;
-    $self->invalidate;
+    $self->state_change;
+}
+
+sub create_object {
+    my ( $self, $context, $name, $args ) = @_;
+    my $class = sprintf( 'Pcode::%s::%s', ucfirst( $context ), ucfirst( $name ) );
+    return $class->deserialize( @$args );
+}
+
+sub add_snap {
+    my ( $self, $object ) = @_;
+    $self->snaps->append( $object );
+    $self->recalculate_snap_points;
+    $self->state_change;
+}
+
+sub update_code_window {
+    my ( $self ) = @_;
+    $self->codewindow->update_from_snaps;
+}
+
+sub add_command {
+    my ( $self, $object ) = @_;
+    $self->current_path->append_command( $object );
+    $self->state_change;
+}
+
+sub recalculate_snap_points {
+    my ( $self ) = @_;
+    my @points = $self->snaps->recalculate_points;
+    $self->snap_points->clear;
+    for my $point ( @points ) {
+        $self->snap_points->append( $point );
+    }
 }
 
 sub motion_notify {
@@ -272,22 +333,16 @@ sub motion_notify {
     }
 }
 
+sub state_change {
+    my ( $self ) = @_;
+    $self->state->save;
+    $self->invalidate;
+}
+
 sub invalidate {
     my ( $self ) = @_;
     my $update_rect = Gtk2::Gdk::Rectangle->new( 0, 0, $self->da_width, $self->da_height );
     $self->da->window->invalidate_rect( $update_rect, FALSE );
-    $self->update_command_window;
-}
-
-sub update_command_window {
-    my ( $self ) = @_;
-
-    my $text = $self->text;
-    my $buffer = $text->get_buffer;
-
-    my $command_text = $self->current_path->stringify;
-
-    $buffer->set_text( $command_text );
 }
 
 sub button_clicked {
@@ -379,7 +434,7 @@ sub line_mode_click {
         $self->current_path->append_command( $new_line );
         
         $self->start_point( undef );
-        $self->invalidate;
+        $self->state_change;
     }
     else {
         my $start_point = $snap_point || Pcode::Point->new( { X => $x, Y => $y } );
@@ -405,7 +460,7 @@ sub arc_mode_click {
         $self->current_path->append_command( $new_arc );
 
         $self->start_point( undef );
-        $self->invalidate;
+        $self->state_change;
     }
     else {
         my $start_point = $snap_point || Pcode::Point->new( { X => $x, Y => $y } );
@@ -445,6 +500,20 @@ sub do_cairo_drawing {
             $command->render( $self, $cr );
         }
 
+    }
+
+    if ( $self->snaps ) {
+        $self->snaps->foreach( sub {
+            my ( $snap ) = @_;
+            $snap->render( $self, $cr );
+        } );
+    }
+
+    if ( $self->snap_points ) {
+        $self->snap_points->foreach( sub {
+            my ( $point ) = @_;
+            $point->render( $self, $cr );
+        } );
     }
 
     if ( $self->current_path ) {
@@ -538,7 +607,11 @@ sub temporary_arc {
 
 sub detect_point_snap {
     my ( $self, $x, $y ) = @_;
-    return $self->current_path->detect_point_snap( $self, $x, $y );
+    my $point = $self->snap_points->detect_point_snap( $self, $x, $y );
+    if ( !$point ) {
+        $point = $self->current_path->detect_point_snap( $self, $x, $y );
+    }
+    return $point;
 }
 
 sub detect_line_snap {
