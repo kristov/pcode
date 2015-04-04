@@ -14,7 +14,7 @@ sub detect_point_snap {
         my ( $command ) = @_;
 
         for my $point ( $command->start, $command->end ) {
-            if ( $point->distance( $current_point ) <= 5 ) {
+            if ( $point->distance( $current_point ) <= 10 ) {
                 $point->hover( 1 );
                 if ( !$app->hover_point || !$app->hover_point->equal( $point ) ) {
                     $app->invalidate;
@@ -40,7 +40,7 @@ sub detect_line_snap {
     $self->foreach( sub {
         my ( $command ) = @_;
 
-        if ( $command->distance_to_point( $current_point ) <= 5 ) {
+        if ( $command->distance_to_point( $current_point ) <= 10 ) {
             $command->hover( 1 );
             if ( !$app->hover_line || !$app->hover_line->equal( $command ) ) {
                 $app->invalidate;

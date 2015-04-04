@@ -75,7 +75,7 @@ sub parse_code {
     for my $thing ( @{ $things } ) {
         my ( $name, $args ) = @{ $thing };
         my $object = $self->app->create_object( 'snap', $name, $args );
-        $self->app->add_snap( $object );
+        $self->app->add_snap( $object ) if $object;
     }
 }
 

@@ -97,12 +97,34 @@ sub intersection_line {
         return Pcode::Point->new( { X => $ix, Y => $iy } );
     }
 
-=item
+    return ();
+}
 
-    s = (-s1_y * (p0_x - p2_x) + s1_x * (p0_y - p2_y)) / (-s2_x * s1_y + s1_x * s2_y);
-    t = ( s2_x * (p0_y - p2_y) - s2_y * (p0_x - p2_x)) / (-s2_x * s1_y + s1_x * s2_y);
+sub intersection_imaginary_line {
+    my ( $self, $line ) = @_;
 
-=cut
+    my $ss = $self->start;
+    my $se = $self->end;
+
+    my $ls = $line->start;
+    my $le = $line->end;
+
+    my $a1 = $se->Y - $ss->Y;
+    my $b1 = $ss->X - $se->X;
+
+    my $a2 = $le->Y - $ls->Y;
+    my $b2 = $ls->X - $le->X;
+
+    my $c1 = ( $a1 * $ss->X ) + ( $b1 * $ss->Y );
+    my $c2 = ( $a2 * $ls->X ) + ( $b2 * $ls->Y );
+
+    my $det = ( $a1 * $b2 ) - ( $a2 * $b1 );
+
+    if ( $det != 0 ) {
+        my $x = ( $b2 * $c1 - $b1 * $c2 ) / $det;
+        my $y = ( $a1 * $c2 - $a2 * $c1 ) / $det;
+        return Pcode::Point->new( { X => $x, Y => $y } );
+    }
 
     return ();
 }

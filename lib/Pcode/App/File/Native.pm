@@ -25,6 +25,19 @@ has 'file' => (
     documentation => "File manipulation object",
 );
 
+has 'default_working_file' => (
+    is  => 'rw',
+    isa => 'Str',
+    default => '.working.pcode',
+    documentation => 'The default working file',
+);
+
+has 'current_file' => (
+    is  => 'rw',
+    isa => 'Str',
+    documentation => 'Whatever file we are working on',
+);
+
 sub save {
     my ( $self ) = @_;
 
@@ -40,7 +53,11 @@ sub save {
 
     my $string = $self->json->encode( $document );
 
-    $self->file->write_file( file => './working.pcode', content => $string );
+    if ( !$self->current_file || !$self->file->can_write( $self->current_file ) ) {
+        $self->current_file( $self->default_working_file );
+    }
+
+    $self->file->write_file( file => $self->current_file, content => $string );
 }
 
 sub serialize_snaps {
@@ -67,8 +84,24 @@ sub serialize_paths {
     } );
 }
 
+sub working_file_exists {
+    my ( $self ) = @_;
+    return $self->file->existent( $self->default_working_file );
+}
+
+sub load_working_file {
+    my ( $self ) = @_;
+    if ( $self->working_file_exists ) {
+        $self->load( $self->default_working_file );
+    }
+}
+
 sub load {
     my ( $self, $file ) = @_;
+
+    if ( $self->file->can_write( $file ) ) {
+        $self->current_file( $file );
+    }
 
     my $string = $self->file->load_file( $file );
 
@@ -91,7 +124,7 @@ sub deserialize_snaps {
     for my $snap ( @{ $snaps } ) {
         my ( $name, $args ) = @{ $snap };
         my $object = $self->app->create_object( 'snap', $name, $args );
-        $self->app->snaps->append( $object );
+        $self->app->snaps->append( $object ) if $object;
     }
 
     $self->app->update_code_window;

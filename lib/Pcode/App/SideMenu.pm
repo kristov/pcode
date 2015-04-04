@@ -30,13 +30,22 @@ sub build_side_menu {
     my $prop_box_holder = Gtk2::HBox->new( FALSE, 0 );
     $prop_box_holder->pack_start( $prop_box, FALSE, FALSE, 0 );
 
+    my $buttons = [
+        [ "Line",  'line', sub { $self->app->mode( 'line' ) } ],
+        [ "Arc",   'arc',  sub { $self->app->mode( 'arc' ) } ],
+        [ "Clear", 'clr',  sub { $self->app->clear_all } ],
+        [ "Parse", 'prs',  sub { $self->app->codewindow->parse_code } ],
+        [ "Zoom+", 'zin',  sub { $self->app->zoom_in } ],
+        [ "Zoom-", 'zot',  sub { $self->app->zoom_out } ],
+    ];
+
     my $vbox = Gtk2::VBox->new( FALSE, 0 );
-    my $line_btn = $self->build_button( "Line", 'line', sub { $self->app->mode( 'line' ) } );
-    my $arc_btn = $self->build_button( "Arc", 'arc', sub { $self->app->codewindow->parse_code } );
-    my $clr_btn = $self->build_button( "Clear", 'clr', sub { $self->app->clear_all } );
-    $vbox->pack_start( $line_btn, FALSE, FALSE, 0 );
-    $vbox->pack_start( $arc_btn, FALSE, FALSE, 0 );
-    $vbox->pack_start( $clr_btn, FALSE, FALSE, 0 );
+    for my $def ( @{ $buttons } ) {
+        my ( $label, $icon, $handler ) = @{ $def };
+        my $btn = $self->build_button( $label, $icon, $handler );
+        $vbox->pack_start( $btn, FALSE, FALSE, 0 );
+    }
+
     $vbox->pack_start( $prop_box_holder, FALSE, FALSE, 0 );
 
     return $vbox;

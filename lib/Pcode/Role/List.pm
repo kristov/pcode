@@ -27,12 +27,22 @@ sub clear {
     $self->list( $list );
 }
 
+sub pop {
+    my ( $self ) = @_;
+    my $list = $self->list;
+    my $discarded = pop( @{ $list } );
+    $self->list( $list );
+}
+
 sub foreach {
     my ( $self, $code ) = @_;
     my $list = $self->list;
+    my $last;
     for my $item ( @{ $list } ) {
-        $code->( $item );
+        $code->( $item, $last );
+        $last = $item;
     }
+    return $last;
 }
 
 1;

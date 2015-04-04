@@ -12,7 +12,7 @@ sub detect_point_snap {
     $self->foreach( sub {
         my ( $point ) = @_;
 
-        if ( $point->distance( $current_point ) <= 5 ) {
+        if ( $point->distance( $current_point ) <= 10 ) {
             $point->hover( 1 );
             if ( !$app->hover_point || !$app->hover_point->equal( $point ) ) {
                 $app->invalidate;

@@ -18,6 +18,7 @@ use Pcode::App::Properties;
 use Pcode::App::SideMenu;
 use Pcode::App::CodeWindow;
 use Pcode::App::File::Native;
+use Pcode::App::KeyHandler;
 
 has 'win' => (
     is  => 'rw',
@@ -94,7 +95,7 @@ has 'y_offset' => (
 has 'zoom' => (
     is  => 'rw',
     isa => 'Num',
-    default => 0,
+    default => 0.5,
     documentation => "Viewing window zoom",
 );
 
@@ -188,6 +189,12 @@ has 'file' => (
     documentation => 'Working file',
 );
 
+has 'keyhandler' => (
+    is  => 'rw',
+    isa => 'Pcode::App::KeyHandler',
+    documentation => "The key press handler",
+);
+
 sub test_snaps {
     my ( $self ) = @_;
 
@@ -221,10 +228,12 @@ sub build_gui {
 
     #$self->test_snaps;
 
+    $self->keyhandler( Pcode::App::KeyHandler->new( { app => $self } ) );
+
     # The graphical environment
     $self->win( Gtk2::Window->new( 'toplevel' ) );
     $self->win->set_default_size( $width, $height );
-    $self->win()->signal_connect( key_press_event => sub { $self->handle_keypress( @_ ) } );
+    $self->win()->signal_connect( key_press_event => sub { $self->keyhandler->handle( @_ ) } );
 
     my $hbox = Gtk2::HBox->new( FALSE, 0 );
     my $vbox = Gtk2::VBox->new( FALSE, 0 );
@@ -272,11 +281,29 @@ sub load_file {
         $self->state->load( $self->file );
         $self->recalculate_snap_points;
     }
+    elsif ( $self->state->working_file_exists ) {
+        $self->state->load_working_file;
+        $self->recalculate_snap_points;
+    }
     else {
         my $current_path = Pcode::Path->new();
         $self->current_path( $current_path );
         $self->paths->add( $current_path );
     }
+}
+
+sub cancel_action {
+    my ( $self ) = @_;
+    if ( $self->start_point ) {
+        $self->start_point( undef );
+        $self->invalidate;
+    }
+}
+
+sub delete_last_command {
+    my ( $self ) = @_;
+    $self->current_path->delete_last;
+    $self->state_change;
 }
 
 sub clear_all {
@@ -288,7 +315,7 @@ sub clear_all {
 sub create_object {
     my ( $self, $context, $name, $args ) = @_;
     my $class = sprintf( 'Pcode::%s::%s', ucfirst( $context ), ucfirst( $name ) );
-    return $class->deserialize( @$args );
+    return eval { $class->deserialize( @$args ) };
 }
 
 sub add_snap {
@@ -322,8 +349,6 @@ sub motion_notify {
     my ( $self, $widget, $event, $data ) = @_;
     my ( $x, $y ) = ( $event->x, $event->y );
 
-    ( $x, $y ) = $self->translate_from_screen_coords( $x, $y );
-    
     $self->detect_point_snap( $x, $y );
 
     if ( $self->start_point ) {
@@ -486,6 +511,8 @@ sub do_cairo_drawing {
         
         my $x = $self->mouse_x;
         my $y = $self->mouse_y;
+        ( $x, $y ) = $self->translate_from_screen_coords( $x, $y );
+    
         my $end = Pcode::Point->new( { X => $x, Y => $y } );
 
         my $command;
@@ -619,18 +646,33 @@ sub detect_line_snap {
     return $self->current_path->detect_line_snap( $self, $x, $y );
 }
 
+sub zoom_in {
+    my ( $self ) = @_;
+    my $zoom = $self->zoom;
+    $zoom = $zoom + 0.1;
+    $self->zoom( $zoom );
+    $self->invalidate;
+}
+
+sub zoom_out {
+    my ( $self ) = @_;
+    my $zoom = $self->zoom;
+    $zoom = $zoom - 0.1;
+    $self->zoom( $zoom );
+    $self->invalidate;
+}
+
 sub translate_to_screen_coords {
     my ( $self, @coords ) = @_;
-    # x_offset
-    # y_offset
-    # zoom
-    @coords = map { $_ * 0.5 } @coords;
+    my $zoom = $self->zoom;
+    @coords = map { $_ * $zoom } @coords;
     return @coords;
 }
 
 sub translate_from_screen_coords {
     my ( $self, @coords ) = @_;
-    @coords = map { $_ / 0.5 } @coords;
+    my $zoom = $self->zoom;
+    @coords = map { $_ / $zoom } @coords;
     return @coords;
 }
 
