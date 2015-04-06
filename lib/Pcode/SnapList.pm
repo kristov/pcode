@@ -26,7 +26,9 @@ sub recalculate_points {
     for my $comp ( @comps ) {
         my ( $obj1, $obj2 ) = ( $by_str_ref{$comp->[0]}, $by_str_ref{$comp->[1]} );
         my @points = $obj1->intersect( $obj2 );
-        push @all_points, @points if @points;
+        for my $point ( @points ) {
+            push @all_points, $point if $point;
+        }
     }
 
     return @all_points;

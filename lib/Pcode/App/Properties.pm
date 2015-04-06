@@ -74,10 +74,10 @@ sub edit_properties {
             my $value = $obj->$name();
             my $widget;
             if ( $property->{type} eq 'Num' ) {
-                $widget = $self->num_widget( $obj, $name, $value );
+                $widget = $self->num_widget( $obj, $name, $value, $property->{hook} );
             }
             elsif ( $property->{type} eq 'Bool' ) {
-                $widget = $self->bool_widget( $obj, $name, $value );
+                $widget = $self->bool_widget( $obj, $name, $value, $property->{hook} );
             }
             $table->attach( $label, 0, 1, $count, $count + 1, [ 'fill' ], [ 'fill' ], 0, 0 );
             $table->attach( $widget, 1, 2, $count, $count + 1, [ 'fill' ], [ 'fill' ], 0, 0 );
@@ -89,12 +89,12 @@ sub edit_properties {
 }
 
 sub num_widget {
-    my ( $self, $object, $name, $value ) = @_;
+    my ( $self, $object, $name, $value, $hook ) = @_;
 
     my $adjustment = Gtk2::Adjustment->new( $value, 0, 1000, 0.01, 1, 0 );
     my $spin = Gtk2::SpinButton->new( $adjustment, 0.5, 2 );
 
-    my $data = { object => $object, name => $name };
+    my $data = { object => $object, name => $name, hook => $hook };
 
     $adjustment->signal_connect( value_changed => sub {
         my ( $widget, $info ) = @_;
@@ -107,16 +107,19 @@ sub num_widget {
         if ( $set_value != $value ) {
             $widget->set_value( $set_value );
         }
-        $self->app->invalidate;
+        if ( $info->{hook} ) {
+            $info->{hook}->( $object );
+        }
+        $self->app->state_change;
     }, $data );
 
     return $spin;
 }
 
 sub bool_widget {
-    my ( $self, $object, $name, $value ) = @_;
+    my ( $self, $object, $name, $value, $hook ) = @_;
 
-    my $data = { object => $object, name => $name };
+    my $data = { object => $object, name => $name, hook => $hook };
 
     my $button = Gtk2::CheckButton->new();
     $button->set_active( $value ? TRUE : FALSE );
@@ -128,7 +131,10 @@ sub bool_widget {
         my $name = $info->{name};
 
         $object->$name( $value );
-        $self->app->invalidate;
+        if ( $info->{hook} ) {
+            $info->{hook}->( $object );
+        }
+        $self->app->state_change;
     }, $data );
 
     return $button;

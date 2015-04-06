@@ -43,6 +43,10 @@ sub save {
 
     my $document = {};
 
+    if ( $self->app->zoom ) {
+        $document->{zoom} = $self->app->zoom;
+    }
+
     if ( $self->app->snaps ) {
         $self->serialize_snaps( $document );
     }
@@ -107,6 +111,10 @@ sub load {
 
     my $document = $self->json->decode( $string );
 
+    if ( $document->{zoom} ) {
+        $self->app->zoom( $document->{zoom} );
+    }
+
     if ( $document->{snaps} ) {
         $self->deserialize_snaps( $document->{snaps} );
     }
@@ -114,6 +122,9 @@ sub load {
     if ( $document->{paths} ) {
         $self->deserialize_paths( $document->{paths} );
     }
+
+    $self->app->update_object_tree;
+    $self->app->update_code_window;
 }
 
 sub deserialize_snaps {
@@ -126,8 +137,6 @@ sub deserialize_snaps {
         my $object = $self->app->create_object( 'snap', $name, $args );
         $self->app->snaps->append( $object ) if $object;
     }
-
-    $self->app->update_code_window;
 }
 
 sub deserialize_paths {
@@ -140,6 +149,9 @@ sub deserialize_paths {
         
         my $path_object = Pcode::Path->new();
         $first_path = $path_object if !$first_path;
+
+        $path_object->tool_radius( $path->{tool_radius} ) if $path->{tool_radius};
+        $path_object->flip( $path->{flip} ) if $path->{flip};
 
         for my $command ( @{ $path->{commands} } ) {
             my ( $name, $args ) = @{ $command };

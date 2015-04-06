@@ -20,6 +20,19 @@ sub append {
     push @{ $list }, $thing;
 }
 
+sub count {
+    my ( $self ) = @_;
+    my $list = $self->list;
+    return scalar( @{ $list } );
+}
+
+sub last {
+    my ( $self ) = @_;
+    my $list = $self->list;
+    return $list->[-1] if @{ $list };
+    return;
+}
+
 sub clear {
     my ( $self ) = @_;
     my $list = $self->list;

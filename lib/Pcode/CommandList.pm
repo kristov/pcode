@@ -5,7 +5,7 @@ use Pcode::Point;
 with 'Pcode::Role::List';
 
 sub detect_point_snap {
-    my ( $self, $app, $x, $y ) = @_;
+    my ( $self, $app, $x, $y, $res ) = @_;
 
     my $current_point = Pcode::Point->new( { X => $x, Y => $y } );
     my $found_point;
@@ -14,7 +14,7 @@ sub detect_point_snap {
         my ( $command ) = @_;
 
         for my $point ( $command->start, $command->end ) {
-            if ( $point->distance( $current_point ) <= 10 ) {
+            if ( $point->distance( $current_point ) <= $res ) {
                 $point->hover( 1 );
                 if ( !$app->hover_point || !$app->hover_point->equal( $point ) ) {
                     $app->invalidate;

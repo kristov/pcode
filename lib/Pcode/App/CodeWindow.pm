@@ -31,14 +31,16 @@ sub build_code_window {
     my ( $self ) = @_;
 
     my $scroll = Gtk2::ScrolledWindow->new( undef, undef );
+    $scroll->set_shadow_type( 'etched-out' );
     $scroll->set_policy( 'automatic', 'automatic' );
+    $scroll->set_size_request( 300, 200 );
+    $scroll->set_border_width( 5 );
 
     my $text = Gtk2::TextView->new();
     $self->text( $text );
     my $buffer = $text->get_buffer;
 
     $scroll->add( $text );
-    $scroll->set_size_request( 300, 500 );
 
     return $scroll;
 }

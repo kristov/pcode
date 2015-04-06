@@ -102,7 +102,7 @@ sub render {
     else {
         $cr->arc( $x, $y, 5, 0, 2 * M_PI );
     }
-    $cr->set_line_width( 2 );
+    $cr->set_line_width( 1 );
     $cr->set_source_rgb( @color );
     $cr->stroke();
 

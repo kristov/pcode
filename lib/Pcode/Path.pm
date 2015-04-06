@@ -18,9 +18,47 @@ has 'tool_paths' => (
     documentation => 'List of tool paths',
 );
 
+has 'tool_radius' => (
+    is  => 'rw',
+    isa => 'Num',
+    default => 2.4,
+    documentation => 'Tool radius in mm',
+);
+
+has 'flip' => (
+    is  => 'rw',
+    isa => 'Bool',
+    default => 0,
+    documentation => 'Flip tool path to other side',
+);
+
+sub properties {
+    my ( $self ) = @_;
+    return [
+        {
+            name  => 'tool_radius',
+            label => 'Tool radius',
+            type  => 'Num',
+            hook  => sub {
+                my ( $self ) = @_;
+                $self->regenerate_tool_paths,
+            },
+        },
+        {
+            name  => 'flip',
+            label => 'Flip',
+            type  => 'Bool',
+            hook  => sub {
+                my ( $self ) = @_;
+                $self->regenerate_tool_paths,
+            },
+        },
+    ];
+}
+
 sub detect_point_snap {
-    my ( $self, $app, $x, $y ) = @_;
-    return $self->commands->detect_point_snap( $app, $x, $y );
+    my ( $self, $app, $x, $y, $res ) = @_;
+    return $self->commands->detect_point_snap( $app, $x, $y, $res );
 }
 
 sub detect_line_snap {
@@ -32,6 +70,20 @@ sub clear {
     my ( $self ) = @_;
     $self->commands->clear;
     $self->tool_paths->clear;
+}
+
+sub select {
+    my ( $self, $selected_command ) = @_;
+    $self->commands->foreach( sub {
+        my ( $command ) = @_;
+        $command->hover( 0 );
+    } );
+    $selected_command->hover( 1 );
+}
+
+sub nr_commands {
+    my ( $self ) = @_;
+    return $self->commands->count;
 }
 
 sub delete_last {
@@ -49,6 +101,11 @@ sub append_command {
     my ( $self, $command ) = @_;
     $self->commands->append( $command );
     $self->regenerate_tool_paths;
+}
+
+sub last_command {
+    my ( $self ) = @_;
+    return $self->commands->last;
 }
 
 sub regenerate_tool_paths {
@@ -95,7 +152,7 @@ sub path_between {
     my ( $self, $prev_command, $command, $prev_path ) = @_;
 
     my @paths;
-    my $path = $command->parallel( 40 );
+    my $path = $command->parallel( $self->tool_radius, $self->flip );
 
     if ( $prev_path ) {
         if ( $prev_command->does( 'Pcode::Role::ArcLike' ) && $command->does( 'Pcode::Role::ArcLike' ) ) {
@@ -167,7 +224,7 @@ sub arc_to_arc {
             my $new_path = Pcode::Command::Arc->new( {
                 start  => $pathA->end,
                 end    => $pathB->start,
-                radius => 40,
+                radius => $self->tool_radius,
             } );
             push @paths, $pathA;
             push @paths, $new_path;
@@ -178,7 +235,7 @@ sub arc_to_arc {
         my $new_path = Pcode::Command::Arc->new( {
             start  => $pathA->end,
             end    => $pathB->start,
-            radius => 40,
+            radius => $self->tool_radius,
         } );
         push @paths, $pathA;
         push @paths, $new_path;
@@ -198,11 +255,28 @@ sub arc_to_line {
 
     my ( $point1, $point2 ) = $pathA->intersection_line( $pathB );
 
-    my $point1d = $point1->distance( $commandA->end );
-    my $point2d = $point2->distance( $commandA->end );
-    my $closest = $point2d > $point1d ? $point1 : $point2;
-
     my @paths;
+
+    if ( !$point1 && !$point2 ) {
+        my $new_path = Pcode::Command::Line->new( {
+            start  => $pathA->end,
+            end    => $pathB->start,
+        } );
+        push @paths, $pathA;
+        push @paths, $new_path;
+        push @paths, $pathB;
+        return @paths;
+    }
+
+    my $closest;
+    if ( !$point2 ) {
+        $closest = $point1;
+    }
+    else {
+        my $point1d = $point1->distance( $commandA->end );
+        my $point2d = $point2->distance( $commandA->end );
+        $closest = $point2d > $point1d ? $point1 : $point2;
+    }
 
     $pathA->end( $closest );
     $pathB->start( $closest );
@@ -243,11 +317,28 @@ sub line_to_arc {
 
     my ( $point1, $point2 ) = $pathB->intersection_line( $pathA );
 
-    my $point1d = $point1->distance( $commandA->end );
-    my $point2d = $point2->distance( $commandA->end );
-    my $closest = $point2d > $point1d ? $point1 : $point2;
-
     my @paths;
+
+    if ( !$point1 && !$point2 ) {
+        my $new_path = Pcode::Command::Line->new( {
+            start  => $pathA->end,
+            end    => $pathB->start,
+        } );
+        push @paths, $pathA;
+        push @paths, $new_path;
+        push @paths, $pathB;
+        return @paths;
+    }
+
+    my $closest;
+    if ( !$point2 ) {
+        $closest = $point1;
+    }
+    else {
+        my $point1d = $point1->distance( $commandA->end );
+        my $point2d = $point2->distance( $commandA->end );
+        $closest = $point2d > $point1d ? $point1 : $point2;
+    }
 
     $pathA->end( $closest );
     $pathB->start( $closest );
@@ -292,7 +383,11 @@ sub serialize {
         push @{ $objects }, $command->serialize;
     } );
 
-    return { commands => $objects };
+    return {
+        tool_radius => $self->tool_radius,
+        flip        => $self->flip,
+        commands    => $objects,
+    };
 }
 
 1;

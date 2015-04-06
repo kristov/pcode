@@ -8,6 +8,7 @@ with 'Pcode::Role::ArcLike';
 has 'clockwise' => (
     is  => 'rw',
     isa => 'Bool',
+    default => 0,
     documentation => "Is it clockwise (false is counter clockwise)",
 );
 
@@ -85,7 +86,7 @@ sub center {
 }
 
 sub parallel {
-    my ( $self, $distance ) = @_;
+    my ( $self, $distance, $flip ) = @_;
 
     my $center = $self->center;
     return if !$center;
@@ -93,7 +94,11 @@ sub parallel {
     my $anglestart = $center->angle_between( $self->start );
     my $angleend   = $center->angle_between( $self->end );
 
-    if ( $self->clockwise ) {
+    my $neg = 1;
+    $neg = 0 if !$flip && $self->clockwise;
+    $neg = 0 if $flip && !$self->clockwise;
+
+    if ( $neg ) {
         $distance = 0 - $distance;
     }
 
@@ -155,7 +160,7 @@ sub render {
     else {
         $cr->arc( $xo, $yo, $r, $angleend, $anglestart );
     }
-    $cr->set_line_width( 2 );
+    $cr->set_line_width( 1 );
     $cr->set_source_rgb( @color );
     $cr->stroke();
 

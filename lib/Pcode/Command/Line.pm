@@ -20,10 +20,10 @@ has 'dashed' => (
 use constant M_PI => 3.14159265;
 
 sub parallel {
-    my ( $self, $distance ) = @_;
+    my ( $self, $distance, $flip ) = @_;
 
     my $angle = $self->start->angle_between( $self->end );
-    my $tangent = $angle + ( M_PI / 2 );
+    my $tangent = $flip ? ( $angle + ( M_PI / 2 ) ) : ( $angle - ( M_PI / 2 ) );
 
     my $startn = $self->start->point_angle_distance_from( $tangent, $distance );
     my $endn = $self->end->point_angle_distance_from( $tangent, $distance );
@@ -59,7 +59,7 @@ sub render {
 
     $cr->move_to( $sx, $sy );
     $cr->line_to( $ex, $ey );
-    $cr->set_line_width( 2 );
+    $cr->set_line_width( 1 );
     $cr->set_source_rgb( @color );
     $cr->stroke();
 

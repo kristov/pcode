@@ -16,9 +16,12 @@ use Pcode::Snap::Circle;
 use Pcode::Snap::Line;
 use Pcode::App::Properties;
 use Pcode::App::SideMenu;
-use Pcode::App::CodeWindow;
+use Pcode::App::ObjectTree;
 use Pcode::App::File::Native;
 use Pcode::App::KeyHandler;
+use Pcode::App::RightMenu;
+use Pcode::App::CodeWindow;
+use Pcode::App::PropContainer;
 
 has 'win' => (
     is  => 'rw',
@@ -34,7 +37,7 @@ has 'da' => (
 
 has 'prop_box' => (
     is  => 'rw',
-    isa => 'Gtk2::VBox',
+    isa => 'Pcode::App::PropContainer',
     documentation => "Generate properties edit in here",
 );
 
@@ -171,7 +174,13 @@ has 'paths' => (
     documentation => "List of paths",
 );
 
-has 'codewindow' => (
+has 'object_tree' => (
+    is  => 'rw',
+    isa => 'Pcode::App::ObjectTree',
+    documentation => "Object tree view",
+);
+
+has 'code_window' => (
     is  => 'rw',
     isa => 'Pcode::App::CodeWindow',
     documentation => "The code editing area",
@@ -233,7 +242,6 @@ sub build_gui {
     # The graphical environment
     $self->win( Gtk2::Window->new( 'toplevel' ) );
     $self->win->set_default_size( $width, $height );
-    $self->win()->signal_connect( key_press_event => sub { $self->keyhandler->handle( @_ ) } );
 
     my $hbox = Gtk2::HBox->new( FALSE, 0 );
     my $vbox = Gtk2::VBox->new( FALSE, 0 );
@@ -242,16 +250,30 @@ sub build_gui {
     $self->da->signal_connect( expose_event => sub { $self->render( @_ ) } );
 
     my $side_menu  = Pcode::App::SideMenu->new( { app => $self } );
-    my $codewindow = Pcode::App::CodeWindow->new( { app => $self } );
-    $self->codewindow( $codewindow );
+
+    my $right_menu = Pcode::App::RightMenu->new( { app => $self } );
+
+    my $code_window = Pcode::App::CodeWindow->new( { app => $self } );
+    $self->code_window( $code_window );
+
+    my $object_tree = Pcode::App::ObjectTree->new( { app => $self } );
+    $self->object_tree( $object_tree );
+
+    my $prop_box = Pcode::App::PropContainer->new( { app => $self } );
+    $self->prop_box( $prop_box );
+
+    $right_menu->widget->pack_start( $object_tree->widget, TRUE, TRUE, 0 );
+    $right_menu->widget->pack_start( $code_window->widget, TRUE, TRUE, 0 );
+    $right_menu->widget->pack_start( $prop_box->widget, TRUE, TRUE, 0 );
 
     $hbox->pack_start( $side_menu->widget, FALSE, FALSE, 0 );
     $hbox->pack_start( $self->da, TRUE, TRUE, 0 );
-    $hbox->pack_end( $codewindow->widget, FALSE, FALSE, 0 );
+    $hbox->pack_end( $right_menu->widget, FALSE, FALSE, 0 );
 
     $vbox->pack_start( $hbox, TRUE, TRUE, 0 );
 
     $self->da->set_events( [
+        'key-press-mask',
         'exposure-mask',
         'leave-notify-mask',
         'button-press-mask',
@@ -261,6 +283,9 @@ sub build_gui {
 
     $self->da->signal_connect( 'button-press-event' => sub { return $self->button_clicked( @_ ) } );
     $self->da->signal_connect( 'motion-notify-event' => sub { $self->motion_notify( @_ ) } );
+    $self->da->signal_connect( 'key-press-event' => sub { $self->keyhandler->handle( @_ ) } );
+    $self->da->can_focus( TRUE );
+    $self->da->grab_focus;
 
     my $color = Gtk2::Gdk::Color->new( 0, 0, 0 );
     $self->da->modify_bg( 'normal', $color );
@@ -286,9 +311,8 @@ sub load_file {
         $self->recalculate_snap_points;
     }
     else {
-        my $current_path = Pcode::Path->new();
+        my $current_path = $self->paths->new_path;
         $self->current_path( $current_path );
-        $self->paths->add( $current_path );
     }
 }
 
@@ -303,6 +327,13 @@ sub cancel_action {
 sub delete_last_command {
     my ( $self ) = @_;
     $self->current_path->delete_last;
+    # Wrong, always assumes the current_path is the last
+    if ( $self->current_path->nr_commands == 0 ) {
+        if ( $self->paths->nr_paths > 1 ) {
+            my $prev_path = $self->paths->delete_last_path;
+            $self->current_path( $prev_path );
+        }
+    }
     $self->state_change;
 }
 
@@ -325,9 +356,14 @@ sub add_snap {
     $self->state_change;
 }
 
+sub update_object_tree {
+    my ( $self ) = @_;
+    $self->object_tree->build_tree;
+}
+
 sub update_code_window {
     my ( $self ) = @_;
-    $self->codewindow->update_from_snaps;
+    $self->code_window->update_from_snaps;
 }
 
 sub add_command {
@@ -349,7 +385,12 @@ sub motion_notify {
     my ( $self, $widget, $event, $data ) = @_;
     my ( $x, $y ) = ( $event->x, $event->y );
 
-    $self->detect_point_snap( $x, $y );
+    if ( !$self->da->has_focus ) {
+        $self->da->grab_focus;
+    }
+
+    my ( $mx, $my ) = $self->translate_from_screen_coords( $x, $y );
+    $self->detect_point_snap( $mx, $my );
 
     if ( $self->start_point ) {
         $self->mouse_x( $x );
@@ -361,6 +402,7 @@ sub motion_notify {
 sub state_change {
     my ( $self ) = @_;
     $self->state->save;
+    $self->update_object_tree;
     $self->invalidate;
 }
 
@@ -398,6 +440,9 @@ sub left_button_clicked {
     elsif ( $mode eq 'arc' ) {
         $self->arc_mode_click( $x, $y, $snap_point );
     }
+    elsif ( $mode eq 'mov' ) {
+        $self->mov_mode_click( $x, $y );
+    }
 
     #$self->draw_line( 0 );
 
@@ -428,23 +473,6 @@ sub right_button_clicked {
     return TRUE;
 }
 
-sub modal_edit_window {
-    my ( $self, $command ) = @_;
-
-    $self->prop_box->foreach( sub { $self->prop_box->remove( $_[0] ) } );
-
-    my $props = Pcode::App::Properties->new( { object => $command, app => $self } );
-    my $table = $props->widget;
-
-    if ( $table ) {
-        $self->prop_box->pack_start( $table, FALSE, FALSE, 0 );
-    }
-
-    return if !$table;
-
-    $self->prop_box->show_all;
-}
-
 sub line_mode_click {
     my ( $self, $x, $y, $snap_point ) = @_;
 
@@ -456,10 +484,7 @@ sub line_mode_click {
             end   => $end_point,
         } );
 
-        $self->current_path->append_command( $new_line );
-        
-        $self->start_point( undef );
-        $self->state_change;
+        $self->add_new_command_to_path( $new_line );
     }
     else {
         my $start_point = $snap_point || Pcode::Point->new( { X => $x, Y => $y } );
@@ -482,15 +507,60 @@ sub arc_mode_click {
             radius => $r,
         } );
 
-        $self->current_path->append_command( $new_arc );
-
-        $self->start_point( undef );
-        $self->state_change;
+        $self->add_new_command_to_path( $new_arc );
     }
     else {
         my $start_point = $snap_point || Pcode::Point->new( { X => $x, Y => $y } );
         $self->start_point( $start_point );
     }
+}
+
+sub mov_mode_click {
+    my ( $self, $x, $y, $snap_point ) = @_;
+}
+
+sub object_selected {
+    my ( $self, $object, $parent_object ) = @_;
+
+    if ( $object ) {
+        if ( $parent_object ) {
+            $self->current_path->select( $object );
+            $self->modal_edit_window( $object );
+            $self->invalidate;
+        }
+        else {
+            $self->modal_edit_window( $object );
+            $self->current_path( $object );
+            $self->invalidate;
+        }
+    }
+}
+
+sub modal_edit_window {
+    my ( $self, $command ) = @_;
+
+    my $props = Pcode::App::Properties->new( { object => $command, app => $self } );
+    return if !$props;
+
+    if ( $props ) {
+        $self->prop_box->show_props( $props );
+    }
+
+}
+
+sub add_new_command_to_path {
+    my ( $self, $new_command ) = @_;
+
+    if ( $self->current_path->last_command ) {
+        if ( !$self->current_path->last_command->end->equal( $self->start_point ) ) {
+            my $new_path = $self->paths->new_path;
+            $self->current_path( $new_path );
+        }
+    }
+
+    $self->current_path->append_command( $new_command );
+    $self->start_point( undef );
+    $self->state_change;
 }
 
 sub create_surface {
@@ -548,78 +618,6 @@ sub do_cairo_drawing {
     }
 }
 
-sub render_command {
-    my ( $self, $cr, $command, $prev_command, $prev_parallel ) = @_;
-    
-    $command->render( $self, $cr );
-
-    my $parallel = $command->parallel( 40 );
-    my @parallels;
-
-    if ( $parallel ) {
-        if ( $prev_parallel ) {
-            if ( $command->can( 'radius' ) && $prev_command->can( 'radius' ) ) {
-                my ( $point1, $point2 ) = $parallel->intersection_arc( $prev_parallel );
-                if ( $point1 && $point2 ) {
-                    my $point;
-                    if ( $command->point_within_arc( $point1 ) && $prev_command->point_within_arc( $point1 ) ) {
-                        $point = $point1;
-                        $prev_parallel->end( $point );
-                        $parallel->start( $point );
-                        push @parallels, $parallel;
-                    }
-                    elsif ( $command->point_within_arc( $point2 ) && $prev_command->point_within_arc( $point2 ) ) {
-                        $point = $point2;
-                        $prev_parallel->end( $point );
-                        $parallel->start( $point );
-                        push @parallels, $parallel;
-                    }
-                    else {
-                        my $distance1 = $point1->distance( $parallel->start );
-                        my $distance2 = $point2->distance( $parallel->start );
-                        my $closest = ( $distance1 < $distance2 ) ? $distance1 : $distance2;
-                        $point = ( $distance1 < $distance2 ) ? $point1 : $point2;
-                        if ( $closest > 80 * 2 ) {
-                            my $distance = $prev_parallel->end->distance( $parallel->start );
-                            my $radius = $distance / 2;
-                            my $new_parallel = Pcode::Command::Arc->new( {
-                                start  => $prev_parallel->end,
-                                end    => $parallel->start,
-                                radius => $radius,
-                            } );
-                            push @parallels, $new_parallel;
-                            push @parallels, $parallel;
-                        }
-                        else {
-                            $prev_parallel->end( $point );
-                            $parallel->start( $point );
-                            push @parallels, $parallel;
-                        }
-                    }
-                }
-                else {
-                    my $distance = $prev_parallel->end->distance( $parallel->start );
-                    my $radius = $distance / 2;
-                    my $new_parallel = Pcode::Command::Arc->new( {
-                        start  => $prev_parallel->end,
-                        end    => $parallel->start,
-                        radius => $radius,
-                    } );
-                    push @parallels, $new_parallel;
-                    push @parallels, $parallel;
-                }
-            }
-            else {
-                push @parallels, $parallel;
-            }
-        }
-        else {
-            push @parallels, $parallel;
-        }
-        return @parallels;
-    }
-}
-
 sub temporary_line {
     my ( $self, $start, $end ) = @_;
     return Pcode::Command::Line->new( { start => $start, end => $end } );
@@ -634,9 +632,13 @@ sub temporary_arc {
 
 sub detect_point_snap {
     my ( $self, $x, $y ) = @_;
-    my $point = $self->snap_points->detect_point_snap( $self, $x, $y );
+
+    my $zoom = $self->zoom;
+    my $res = 2;
+
+    my $point = $self->current_path->detect_point_snap( $self, $x, $y, $res );
     if ( !$point ) {
-        $point = $self->current_path->detect_point_snap( $self, $x, $y );
+        $point = $self->snap_points->detect_point_snap( $self, $x, $y, $res );
     }
     return $point;
 }
@@ -651,7 +653,7 @@ sub zoom_in {
     my $zoom = $self->zoom;
     $zoom = $zoom + 0.1;
     $self->zoom( $zoom );
-    $self->invalidate;
+    $self->state_change;
 }
 
 sub zoom_out {
@@ -659,7 +661,7 @@ sub zoom_out {
     my $zoom = $self->zoom;
     $zoom = $zoom - 0.1;
     $self->zoom( $zoom );
-    $self->invalidate;
+    $self->state_change;
 }
 
 sub translate_to_screen_coords {
