@@ -121,32 +121,24 @@ sub render {
     my ( $self, $app, $cr ) = @_;
     $cr->save;
 
-    my $start = $self->start;
-    my $end   = $self->end;
-
-    my $sx = $start->X;
-    my $sy = $start->Y;
-
-    my $ex = $end->X;
-    my $ey = $end->Y;
-
     my $r = $self->radius;
 
     my $center = $self->center;
     return if !$center;
-
-    my $xo = $center->X;
-    my $yo = $center->Y;
-
-    my $anglestart = $center->angle_between( $start );
-    my $angleend   = $center->angle_between( $end );
 
     my @color = ( 1, 1, 1 );
     if ( $self->hover ) {
         @color = ( 1, 0, 0 );
     }
 
-    ( $xo, $yo, $r ) = $app->translate_to_screen_coords( $xo, $yo, $r );
+    ( $r ) = $app->scale_to_screen( $r );
+    my ( $new_center, $start, $end ) = $app->translate_to_screen_coords( $center, $self->start, $self->end );
+
+    my $anglestart = $new_center->angle_between( $start );
+    my $angleend   = $new_center->angle_between( $end );
+
+    my $xo = $new_center->X;
+    my $yo = $new_center->Y;
 
     if ( $self->dashed ) {
         my @dashes = ( 6.0, 6.0 );
@@ -155,10 +147,10 @@ sub render {
     }
 
     if ( $self->clockwise ) {
-        $cr->arc( $xo, $yo, $r, $anglestart, $angleend );
+        $cr->arc( $xo, $yo, $r, $angleend, $anglestart );
     }
     else {
-        $cr->arc( $xo, $yo, $r, $angleend, $anglestart );
+        $cr->arc( $xo, $yo, $r, $anglestart, $angleend );
     }
     $cr->set_line_width( 1 );
     $cr->set_source_rgb( @color );
@@ -166,8 +158,8 @@ sub render {
 
     $cr->restore;
 
-    $start->render( $app, $cr, 0 );
-    $end->render( $app, $cr, 1 );
+    $self->start->render( $app, $cr, 0 );
+    $self->end->render( $app, $cr, 1 );
 }
 
 sub serialize {

@@ -23,11 +23,12 @@ sub BUILD {
         [ "Draw line",          'line', sub { $self->app->mode( 'line' ) } ],
         [ "Draw arc",           'arc',  sub { $self->app->mode( 'arc' ) } ],
         [ "Parse code window",  'prs',  sub { $self->app->code_window->parse_code } ],
-        [ "Set machine center", 'mce',  sub { } ],
-        [ "Set path center",    'pce',  sub { } ],
-        [ "Move window",        'mov',  sub { } ],
+        [ "Set machine center", 'mce',  sub { $self->app->mode( 'mce' ) } ],
+        [ "Set path center",    'pce',  sub { $self->app->mode( 'pce' ) } ],
+        [ "Move window",        'mov',  sub { $self->app->mode( 'mov' ) } ],
         [ "Zoom in",            'zin',  sub { $self->app->zoom_in } ],
         [ "Zoom out",           'zot',  sub { $self->app->zoom_out } ],
+        [ "Generate G-CODE",    'gcd',  sub { $self->app->generate_gcode } ],
         [ "Delete all paths",   'clr',  sub { $self->app->clear_all } ],
     ];
 

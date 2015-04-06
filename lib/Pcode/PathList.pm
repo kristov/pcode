@@ -22,4 +22,12 @@ sub delete_last_path {
     return $self->last;
 }
 
+sub translate {
+    my ( $self, $x, $y ) = @_;
+    $self->foreach( sub {
+        my ( $path ) = @_;
+        $path->translate( $x, $y );
+    } );
+}
+
 1;

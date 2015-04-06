@@ -134,4 +134,10 @@ sub equal {
     return ( $self->start->equal( $line->start ) && $self->end->equal( $line->end ) ) ? 1 : 0;
 }
 
+sub translate {
+    my ( $self, $x, $y ) = @_;
+    $self->start->translate( $x, $y );
+    $self->end->translate( $x, $y );
+}
+
 1;

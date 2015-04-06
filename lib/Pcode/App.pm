@@ -84,14 +84,14 @@ has 'da_height' => (
 has 'x_offset' => (
     is  => 'rw',
     isa => 'Int',
-    default => 0,
+    default => 10,
     documentation => "Viewing window offset X",
 );
 
 has 'y_offset' => (
     is  => 'rw',
     isa => 'Int',
-    default => 0,
+    default => 10,
     documentation => "Viewing window offset Y",
 );
 
@@ -154,13 +154,6 @@ has 'snaps' => (
     documentation => "The snap list",
 );
 
-has 'snap_points' => (
-    is  => 'rw',
-    isa => 'Pcode::PointList',
-    default => sub { Pcode::PointList->new(); },
-    documentation => "The snap point list",
-);
-
 has 'current_path' => (
     is  => 'rw',
     isa => 'Pcode::Path',
@@ -204,44 +197,36 @@ has 'keyhandler' => (
     documentation => "The key press handler",
 );
 
-sub test_snaps {
-    my ( $self ) = @_;
+has 'path_center' => (
+    is  => 'rw',
+    isa => 'Pcode::Point',
+    default => sub { Pcode::Point->new( { X => 0, Y => 0 } ) },
+    documentation => "The location of the path center",
+);
 
-    $self->snaps->append( Pcode::Snap::Line->new( {
-        start => Pcode::Point->new( { X => 200, Y => 100 } ),
-        end   => Pcode::Point->new( { X => 200, Y => 300 } )
-    } ) );
-    $self->snaps->append( Pcode::Snap::Line->new( {
-        start => Pcode::Point->new( { X => 500, Y => 500 } ),
-        end   => Pcode::Point->new( { X => 700, Y => 300 } )
-    } ) );
-    $self->snaps->append( Pcode::Snap::Line->new( {
-        start => Pcode::Point->new( { X => 900, Y => 500 } ),
-        end   => Pcode::Point->new( { X => 1000, Y => 500 } )
-    } ) );
-
-    my @points = $self->snaps->recalculate_points;
-}
+has 'machine_center' => (
+    is  => 'rw',
+    isa => 'Pcode::Point',
+    default => sub { Pcode::Point->new( { X => 0, Y => 0 } ) },
+    documentation => "The location of the machine center",
+);
 
 sub BUILD {
     my ( $self ) = @_;
-    $self->build_gui;
     $self->load_file;
+    $self->build_gui;
+    $self->update_object_tree;
+    $self->update_code_window;
 }
 
 sub build_gui {    
     my ( $self ) = @_;
 
-    my $width = $self->width;
-    my $height = $self->height;
-
-    #$self->test_snaps;
-
     $self->keyhandler( Pcode::App::KeyHandler->new( { app => $self } ) );
 
     # The graphical environment
     $self->win( Gtk2::Window->new( 'toplevel' ) );
-    $self->win->set_default_size( $width, $height );
+    $self->win->set_default_size( $self->width, $self->height );
 
     my $hbox = Gtk2::HBox->new( FALSE, 0 );
     my $vbox = Gtk2::VBox->new( FALSE, 0 );
@@ -304,11 +289,9 @@ sub load_file {
 
     if ( $self->file ) {
         $self->state->load( $self->file );
-        $self->recalculate_snap_points;
     }
     elsif ( $self->state->working_file_exists ) {
         $self->state->load_working_file;
-        $self->recalculate_snap_points;
     }
     else {
         my $current_path = $self->paths->new_path;
@@ -351,8 +334,7 @@ sub create_object {
 
 sub add_snap {
     my ( $self, $object ) = @_;
-    $self->snaps->append( $object );
-    $self->recalculate_snap_points;
+    $self->snaps->add_snap( $object );
     $self->state_change;
 }
 
@@ -372,15 +354,6 @@ sub add_command {
     $self->state_change;
 }
 
-sub recalculate_snap_points {
-    my ( $self ) = @_;
-    my @points = $self->snaps->recalculate_points;
-    $self->snap_points->clear;
-    for my $point ( @points ) {
-        $self->snap_points->append( $point );
-    }
-}
-
 sub motion_notify {
     my ( $self, $widget, $event, $data ) = @_;
     my ( $x, $y ) = ( $event->x, $event->y );
@@ -389,8 +362,8 @@ sub motion_notify {
         $self->da->grab_focus;
     }
 
-    my ( $mx, $my ) = $self->translate_from_screen_coords( $x, $y );
-    $self->detect_point_snap( $mx, $my );
+    my ( $point ) = $self->translate_from_screen_coords( Pcode::Point->new( { X => $x, Y => $y } ) );
+    $self->detect_point_snap( $point );
 
     if ( $self->start_point ) {
         $self->mouse_x( $x );
@@ -416,33 +389,40 @@ sub button_clicked {
     my ( $self, $widget, $event ) = @_;
     my ( $x, $y, $button ) = ( $event->x, $event->y, $event->button );
 
-    ( $x, $y ) = $self->translate_from_screen_coords( $x, $y );
+    my ( $point ) = $self->translate_from_screen_coords( Pcode::Point->new( { X => $x, Y => $y } ) );
 
     my $button_nr = $event->button;
 
     if ( $button_nr == 1 ) {
-        return $self->left_button_clicked( $x, $y );
+        return $self->left_button_clicked( $point );
     }
     elsif ( $button_nr == 3 ) {
-        return $self->right_button_clicked( $x, $y );
+        return $self->right_button_clicked( $point );
     }
 }
 
 sub left_button_clicked {
-    my ( $self, $x, $y ) = @_;
+    my ( $self, $point ) = @_;
 
-    my $snap_point = $self->detect_point_snap( $x, $y );
+    my $snap_point = $self->detect_point_snap( $point );
 
     my $mode = $self->mode;
     if ( $mode eq 'line' ) {
-        $self->line_mode_click( $x, $y, $snap_point );
+        $self->line_mode_click( $point, $snap_point );
     }
     elsif ( $mode eq 'arc' ) {
-        $self->arc_mode_click( $x, $y, $snap_point );
+        $self->arc_mode_click( $point, $snap_point );
     }
     elsif ( $mode eq 'mov' ) {
-        $self->mov_mode_click( $x, $y );
+        $self->mov_mode_click( $point, $snap_point );
     }
+    elsif ( $mode eq 'mce' ) {
+        $self->mce_mode_click( $point, $snap_point );
+    }
+    elsif ( $mode eq 'pce' ) {
+        $self->pce_mode_click( $point, $snap_point );
+    }
+
 
     #$self->draw_line( 0 );
 
@@ -450,20 +430,20 @@ sub left_button_clicked {
 }
 
 sub right_button_clicked {
-    my ( $self, $x, $y ) = @_;
+    my ( $self, $point ) = @_;
 
     if ( $self->start_point ) {
         $self->start_point( undef );
         $self->invalidate;
     }
 
-    my $snap_point = $self->detect_point_snap( $x, $y );
+    my $snap_point = $self->detect_point_snap( $point );
 
     if ( $snap_point ) {
         $self->modal_edit_window( $snap_point );
     }
     else {
-        my $command = $self->detect_line_snap( $x, $y );
+        my $command = $self->detect_line_snap( $point );
         if ( $command ) {
             $self->modal_edit_window( $command );
             return TRUE;
@@ -474,10 +454,10 @@ sub right_button_clicked {
 }
 
 sub line_mode_click {
-    my ( $self, $x, $y, $snap_point ) = @_;
+    my ( $self, $point, $snap_point ) = @_;
 
     if ( $self->start_point ) {
-        my $end_point = $snap_point || Pcode::Point->new( { X => $x, Y => $y } );
+        my $end_point = $snap_point || $point;
 
         my $new_line = Pcode::Command::Line->new( {
             start => $self->start_point,
@@ -487,16 +467,16 @@ sub line_mode_click {
         $self->add_new_command_to_path( $new_line );
     }
     else {
-        my $start_point = $snap_point || Pcode::Point->new( { X => $x, Y => $y } );
+        my $start_point = $snap_point || $point;
         $self->start_point( $start_point );
     }
 }
 
 sub arc_mode_click {
-    my ( $self, $x, $y, $snap_point ) = @_;
+    my ( $self, $point, $snap_point ) = @_;
 
     if ( $self->start_point ) {
-        my $end_point = $snap_point || Pcode::Point->new( { X => $x, Y => $y } );
+        my $end_point = $snap_point || $point;
 
         my $r = $self->start_point->distance( $end_point );
         $r = int( $r );
@@ -510,13 +490,51 @@ sub arc_mode_click {
         $self->add_new_command_to_path( $new_arc );
     }
     else {
-        my $start_point = $snap_point || Pcode::Point->new( { X => $x, Y => $y } );
+        my $start_point = $snap_point || $point;
         $self->start_point( $start_point );
     }
 }
 
 sub mov_mode_click {
-    my ( $self, $x, $y, $snap_point ) = @_;
+    my ( $self, $point, $snap_point ) = @_;
+
+    my ( $screen ) = $self->translate_to_screen_coords( $point );
+    my ( $dw, $dh ) = ( $self->da_width, $self->da_height );
+
+    my $x = $screen->X;
+    my $y = $dh - $screen->Y;
+    ( $x, $y ) = $self->scale_from_screen( $x, $y );
+
+    $self->x_offset( int( $x ) );
+    $self->y_offset( int( $y ) );
+
+    $self->invalidate;
+}
+
+sub mce_mode_click {
+    my ( $self, $point, $snap_point ) = @_;
+    $self->machine_center( $snap_point || $point );
+    $self->invalidate;
+}
+
+sub pce_mode_click {
+    my ( $self, $point, $snap_point ) = @_;
+
+    $point = $snap_point if $snap_point;
+
+    my ( $x, $y ) = ( $point->X, $point->Y );
+    my $diff_x = 0 - $x;
+    my $diff_y = 0 - $y;
+
+    $self->translate_everything( $diff_x, $diff_y );
+
+    $self->state_change;
+}
+
+sub translate_everything {
+    my ( $self, $x, $y ) = @_;
+    $self->snaps->translate( $x, $y );
+    $self->paths->translate( $x, $y );
 }
 
 sub object_selected {
@@ -545,7 +563,6 @@ sub modal_edit_window {
     if ( $props ) {
         $self->prop_box->show_props( $props );
     }
-
 }
 
 sub add_new_command_to_path {
@@ -581,9 +598,7 @@ sub do_cairo_drawing {
         
         my $x = $self->mouse_x;
         my $y = $self->mouse_y;
-        ( $x, $y ) = $self->translate_from_screen_coords( $x, $y );
-    
-        my $end = Pcode::Point->new( { X => $x, Y => $y } );
+        my ( $end ) = $self->translate_from_screen_coords( Pcode::Point->new( { X => $x, Y => $y } ) );
 
         my $command;
         if ( $self->mode eq 'line' ) {
@@ -599,23 +614,50 @@ sub do_cairo_drawing {
 
     }
 
-    if ( $self->snaps ) {
-        $self->snaps->foreach( sub {
-            my ( $snap ) = @_;
-            $snap->render( $self, $cr );
-        } );
+    if ( $self->path_center ) {
+        $self->render_crosshair( $cr, $self->path_center, [ 0, 1, 0 ] );
     }
 
-    if ( $self->snap_points ) {
-        $self->snap_points->foreach( sub {
-            my ( $point ) = @_;
-            $point->render( $self, $cr );
-        } );
+    if ( $self->machine_center ) {
+        $self->render_crosshair( $cr, $self->machine_center, [ 0, 1, 1 ] );
+    }
+
+    if ( $self->snaps ) {
+        $self->snaps->render( $self, $cr );
     }
 
     if ( $self->current_path ) {
         $self->current_path->render( $self, $cr );
     }
+}
+
+sub render_crosshair {
+    my ( $self, $cr, $point, $color ) = @_;
+    $cr->save;
+
+    ( $point ) = $self->translate_to_screen_coords( $point );
+
+    my $x = $point->X;
+    my $y = $point->Y;
+
+    my $x1 = $x - 100;
+    my $x2 = $x + 100;
+
+    my $y1 = $y - 100;
+    my $y2 = $y + 100;
+
+    $cr->set_line_width( 1 );
+    $cr->set_source_rgb( @{ $color } );
+
+    $cr->move_to( $x1, $y );
+    $cr->line_to( $x2, $y );
+    $cr->stroke();
+
+    $cr->move_to( $x, $y1 );
+    $cr->line_to( $x, $y2 );
+    $cr->stroke();
+
+    $cr->restore;
 }
 
 sub temporary_line {
@@ -631,21 +673,21 @@ sub temporary_arc {
 }
 
 sub detect_point_snap {
-    my ( $self, $x, $y ) = @_;
+    my ( $self, $current_point ) = @_;
 
     my $zoom = $self->zoom;
     my $res = 2;
 
-    my $point = $self->current_path->detect_point_snap( $self, $x, $y, $res );
+    my $point = $self->current_path->detect_point_snap( $self, $current_point, $res );
     if ( !$point ) {
-        $point = $self->snap_points->detect_point_snap( $self, $x, $y, $res );
+        $point = $self->snaps->detect_point_snap( $self, $current_point, $res );
     }
     return $point;
 }
 
 sub detect_line_snap {
-    my ( $self, $x, $y ) = @_;
-    return $self->current_path->detect_line_snap( $self, $x, $y );
+    my ( $self, $point ) = @_;
+    return $self->current_path->detect_line_snap( $self, $point );
 }
 
 sub zoom_in {
@@ -664,26 +706,65 @@ sub zoom_out {
     $self->state_change;
 }
 
-sub translate_to_screen_coords {
-    my ( $self, @coords ) = @_;
+sub scale_to_screen {
+    my ( $self, @numbers ) = @_;
     my $zoom = $self->zoom;
-    @coords = map { $_ * $zoom } @coords;
-    return @coords;
+    @numbers = map { $_ * $zoom } @numbers;
+    return @numbers;
+}
+
+sub scale_from_screen {
+    my ( $self, @numbers ) = @_;
+    my $zoom = $self->zoom;
+    @numbers = map { $_ / $zoom } @numbers;
+    return @numbers;
+}
+
+sub translate_to_screen_coords {
+    my ( $self, @points ) = @_;
+
+    my @new_points;
+    my $da_height = $self->da_height;
+
+    for my $point ( @points ) {
+        my ( $x, $y ) = ( $point->X, $point->Y );
+        $x = $x + $self->x_offset;
+        $y = $y + $self->y_offset;
+        ( $x, $y ) = $self->scale_to_screen( $x, $y );
+        $y = $da_height - $y;
+        push @new_points, Pcode::Point->new( { X => $x, Y => $y } );
+    }
+    return @new_points;
 }
 
 sub translate_from_screen_coords {
-    my ( $self, @coords ) = @_;
-    my $zoom = $self->zoom;
-    @coords = map { $_ / $zoom } @coords;
-    return @coords;
+    my ( $self, @points ) = @_;
+    
+    my @new_points;
+    my $da_height = $self->da_height;
+
+    for my $point ( @points ) {
+        my ( $x, $y ) = ( $point->X, $point->Y );
+        $y = $da_height - $y;
+        ( $x, $y ) = $self->scale_from_screen( $x, $y );
+        $x = $x - $self->x_offset;
+        $y = $y - $self->y_offset;
+        push @new_points, Pcode::Point->new( { X => $x, Y => $y } );
+    }
+    return @new_points;
 }
 
 sub render {
     my ( $self, $widget, $event ) = @_;
 
     my ( $da_width, $da_height ) = $self->da->window->get_size;
+
     $self->da_width( $da_width );
     $self->da_height( $da_height );
+
+    my ( $width, $height ) = $self->win->get_size;
+    $self->width( $width );
+    $self->height( $height );
 
     $self->do_cairo_drawing;
     my $cr = Gtk2::Gdk::Cairo::Context->create( $widget->window );
@@ -692,7 +773,14 @@ sub render {
     return FALSE;
 }
 
-sub handle_keypress {
+sub generate_gcode {
+    my ( $self ) = @_;
+
+    my $prev_path;
+    $self->paths->foreach( sub {
+        my ( $path ) = @_;
+        print "GCODE!!!!\n";
+    } );
 }
 
 sub run {

@@ -33,10 +33,11 @@ sub render {
     my $center = $self->center;
     return if !$center;
 
+    ( $r ) = $app->scale_to_screen( $r );
+    ( $center ) = $app->translate_to_screen_coords( $center );
+
     my $xo = $center->X;
     my $yo = $center->Y;
-
-    ( $xo, $yo, $r ) = $app->translate_to_screen_coords( $xo, $yo, $r );
 
     $cr->arc( $xo, $yo, $r, 0, M_PI * 2 );
     $cr->set_line_width( 1 );
@@ -57,6 +58,11 @@ sub deserialize {
         center => Pcode::Point->new( { X => $x1, Y => $y1 } ),
         radius => $radius,
     );
+}
+
+sub translate {
+    my ( $self, $x, $y ) = @_;
+    $self->center->translate( $x, $y );
 }
 
 1;

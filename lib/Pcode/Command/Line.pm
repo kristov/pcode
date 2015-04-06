@@ -35,21 +35,18 @@ sub render {
     my ( $self, $app, $cr ) = @_;
     $cr->save;
 
-    my $start = $self->start;
-    my $end   = $self->end;
+    my @color = ( 1, 1, 1 );
+    if ( $self->hover ) {
+        @color = ( 1, 0, 0 );
+    }
+
+    my ( $start, $end ) = $app->translate_to_screen_coords( $self->start, $self->end );
 
     my $sx = $start->X;
     my $sy = $start->Y;
 
     my $ex = $end->X;
     my $ey = $end->Y;
-
-    my @color = ( 1, 1, 1 );
-    if ( $self->hover ) {
-        @color = ( 1, 0, 0 );
-    }
-
-    ( $sx, $sy, $ex, $ey ) = $app->translate_to_screen_coords( $sx, $sy, $ex, $ey );
 
     if ( $self->dashed ) {
         my @dashes = ( 6.0, 6.0 );
@@ -65,8 +62,8 @@ sub render {
 
     $cr->restore;
 
-    $start->render( $app, $cr, 0 );
-    $end->render( $app, $cr, 1 );
+    $self->start->render( $app, $cr, 0 );
+    $self->end->render( $app, $cr, 1 );
 }
 
 sub serialize {

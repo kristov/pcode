@@ -57,13 +57,13 @@ sub properties {
 }
 
 sub detect_point_snap {
-    my ( $self, $app, $x, $y, $res ) = @_;
-    return $self->commands->detect_point_snap( $app, $x, $y, $res );
+    my ( $self, $app, $point, $res ) = @_;
+    return $self->commands->detect_point_snap( $app, $point, $res );
 }
 
 sub detect_line_snap {
-    my ( $self, $app, $x, $y ) = @_;
-    return $self->commands->detect_line_snap( $app, $x, $y );
+    my ( $self, $app, $point ) = @_;
+    return $self->commands->detect_line_snap( $app, $point );
 }
 
 sub clear {
@@ -388,6 +388,15 @@ sub serialize {
         flip        => $self->flip,
         commands    => $objects,
     };
+}
+
+sub translate {
+    my ( $self, $x, $y ) = @_;
+    $self->commands->foreach( sub {
+        my ( $command ) = @_;
+        $command->translate( $x, $y );
+    } );
+    $self->regenerate_tool_paths;
 }
 
 1;

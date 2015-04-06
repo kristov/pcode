@@ -5,9 +5,8 @@ use Pcode::Point;
 with 'Pcode::Role::List';
 
 sub detect_point_snap {
-    my ( $self, $app, $x, $y, $res ) = @_;
+    my ( $self, $app, $current_point, $res ) = @_;
 
-    my $current_point = Pcode::Point->new( { X => $x, Y => $y } );
     my $found_point;
 
     $self->foreach( sub {
@@ -32,9 +31,8 @@ sub detect_point_snap {
 }
 
 sub detect_line_snap {
-    my ( $self, $app, $x, $y ) = @_;
+    my ( $self, $app, $current_point ) = @_;
 
-    my $current_point = Pcode::Point->new( { X => $x, Y => $y } );
     my $found_line;
 
     $self->foreach( sub {

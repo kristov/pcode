@@ -230,4 +230,10 @@ sub intersection_line {
     }
 }
 
+sub translate {
+    my ( $self, $x, $y ) = @_;
+    $self->start->translate( $x, $y );
+    $self->end->translate( $x, $y );
+}
+
 1;

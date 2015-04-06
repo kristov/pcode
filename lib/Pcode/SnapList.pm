@@ -3,6 +3,49 @@ package Pcode::SnapList;
 use Moose;
 with 'Pcode::Role::List';
 
+has 'points' => (
+    is  => 'rw',
+    isa => 'Pcode::PointList',
+    default => sub { Pcode::PointList->new(); },
+    documentation => "The snap point list",
+);
+
+sub translate {
+    my ( $self, $x, $y ) = @_;
+    $self->foreach( sub {
+        my ( $snap ) = @_;
+        $snap->translate( $x, $y );
+    } );
+    $self->recalculate_points;
+}
+
+sub add_snap {
+    my ( $self, $object ) = @_;
+    $self->append( $object );
+    $self->recalculate_points;
+}
+
+sub detect_point_snap {
+    my ( $self, $app, $current_point, $res ) = @_;
+    return $self->points->detect_point_snap( $app, $current_point, $res );
+}
+
+sub render {
+    my ( $self, $app, $cr ) = @_;
+
+    $self->foreach( sub {
+        my ( $snap ) = @_;
+        $snap->render( $app, $cr );
+    } );
+
+    if ( $self->points ) {
+        $self->points->foreach( sub {
+            my ( $point ) = @_;
+            $point->render( $app, $cr );
+        } );
+    }
+}
+
 sub recalculate_points {
     my ( $self ) = @_;
 
@@ -31,7 +74,10 @@ sub recalculate_points {
         }
     }
 
-    return @all_points;
+    $self->points->clear;
+    for my $point ( @all_points ) {
+        $self->points->append( $point );
+    }
 }
 
 1;

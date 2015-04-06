@@ -83,18 +83,27 @@ sub equal {
     return ( $self->X == $point->X && $self->Y == $point->Y && $self->Z == $point->Z ) ? 1 : 0;
 }
 
+sub translate {
+    my ( $self, $x, $y ) = @_;
+    my $xs = $self->X;
+    my $ys = $self->Y;
+    $self->X( $xs + $x );
+    $self->Y( $ys + $y );
+}
+
 sub render {
     my ( $self, $app, $cr, $square ) = @_;
     $cr->save;
-
-    my $x = $self->X;
-    my $y = $self->Y;
 
     my @color = ( 1, 1, 1 );
     if ( $self->hover ) {
         @color = ( 1, 0, 0 );
     }
-    ( $x, $y ) = $app->translate_to_screen_coords( $x, $y );
+
+    my ( $point ) = $app->translate_to_screen_coords( $self );
+
+    my $x = $point->X;
+    my $y = $point->Y;
 
     if ( $square ) {
         $cr->rectangle( $x - 5, $y - 5, 10, 10 );

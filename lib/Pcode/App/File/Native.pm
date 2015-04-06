@@ -38,10 +38,22 @@ has 'current_file' => (
     documentation => 'Whatever file we are working on',
 );
 
+my @APP_SETTINGS = qw(
+    width
+    height
+    zoom
+    x_offset
+    y_offset
+);
+
 sub save {
     my ( $self ) = @_;
 
     my $document = {};
+
+    for my $prop ( @APP_SETTINGS ) {
+        $document->{$prop} = $self->app->$prop;
+    }
 
     if ( $self->app->zoom ) {
         $document->{zoom} = $self->app->zoom;
@@ -111,8 +123,10 @@ sub load {
 
     my $document = $self->json->decode( $string );
 
-    if ( $document->{zoom} ) {
-        $self->app->zoom( $document->{zoom} );
+    for my $prop ( @APP_SETTINGS ) {
+        if ( exists $document->{$prop} ) {
+            $self->app->$prop( $document->{$prop} );
+        }
     }
 
     if ( $document->{snaps} ) {
@@ -122,9 +136,6 @@ sub load {
     if ( $document->{paths} ) {
         $self->deserialize_paths( $document->{paths} );
     }
-
-    $self->app->update_object_tree;
-    $self->app->update_code_window;
 }
 
 sub deserialize_snaps {
@@ -135,8 +146,11 @@ sub deserialize_snaps {
     for my $snap ( @{ $snaps } ) {
         my ( $name, $args ) = @{ $snap };
         my $object = $self->app->create_object( 'snap', $name, $args );
-        $self->app->snaps->append( $object ) if $object;
+        if ( $object ) {
+            $self->app->snaps->append( $object );
+        }
     }
+    $self->app->snaps->recalculate_points;
 }
 
 sub deserialize_paths {

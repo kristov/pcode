@@ -13,16 +13,13 @@ sub render {
     my ( $self, $app, $cr ) = @_;
     $cr->save;
 
-    my $start = $self->start;
-    my $end   = $self->end;
+    my ( $start, $end ) = $app->translate_to_screen_coords( $self->start, $self->end );
 
     my $sx = $start->X;
     my $sy = $start->Y;
 
     my $ex = $end->X;
     my $ey = $end->Y;
-
-    ( $sx, $sy, $ex, $ey ) = $app->translate_to_screen_coords( $sx, $sy, $ex, $ey );
 
     $cr->move_to( $sx, $sy );
     $cr->line_to( $ex, $ey );
