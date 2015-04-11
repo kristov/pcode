@@ -59,6 +59,9 @@ sub center {
     # q == distance between two points
     my $q = sqrt( ( $ex - $sx ) ** 2 + ( $ey - $sy ) ** 2 );
 
+    if ( $q <= 0 ) {
+        print STDERR "distance is zero\n";
+    }
     return if $q <= 0;
 
     if ( ( $r * 2 ) < $q ) {
@@ -74,12 +77,12 @@ sub center {
     my $yc;
 
     if ( $self->clockwise ) {
-        $xc = $x3 + sqrt( $r ** 2 - ( $q / 2 ) ** 2 ) * ( $sy - $ey ) / $q;
-        $yc = $y3 + sqrt( $r ** 2 - ( $q / 2 ) ** 2 ) * ( $ex - $sx ) / $q;
-    }
-    else {
         $xc = $x3 - sqrt( $r ** 2 - ( $q / 2 ) ** 2 ) * ( $sy - $ey ) / $q;
         $yc = $y3 - sqrt( $r ** 2 - ( $q / 2 ) ** 2 ) * ( $ex - $sx ) / $q;
+    }
+    else {
+        $xc = $x3 + sqrt( $r ** 2 - ( $q / 2 ) ** 2 ) * ( $sy - $ey ) / $q;
+        $yc = $y3 + sqrt( $r ** 2 - ( $q / 2 ) ** 2 ) * ( $ex - $sx ) / $q;
     }
 
     return Pcode::Point->new( { X => $xc, Y => $yc } );
@@ -95,8 +98,8 @@ sub parallel {
     my $angleend   = $center->angle_between( $self->end );
 
     my $neg = 1;
-    $neg = 0 if !$flip && $self->clockwise;
-    $neg = 0 if $flip && !$self->clockwise;
+    $neg = 0 if !$flip && !$self->clockwise;
+    $neg = 0 if $flip && $self->clockwise;
 
     if ( $neg ) {
         $distance = 0 - $distance;
@@ -147,10 +150,10 @@ sub render {
     }
 
     if ( $self->clockwise ) {
-        $cr->arc( $xo, $yo, $r, $angleend, $anglestart );
+        $cr->arc( $xo, $yo, $r, $anglestart, $angleend );
     }
     else {
-        $cr->arc( $xo, $yo, $r, $anglestart, $angleend );
+        $cr->arc( $xo, $yo, $r, $angleend, $anglestart );
     }
     $cr->set_line_width( 1 );
     $cr->set_source_rgb( @color );
