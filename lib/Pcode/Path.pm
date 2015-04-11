@@ -211,13 +211,11 @@ sub arc_to_arc {
         if ( $commandA->point_within_arc( $point1 ) && $commandB->point_within_arc( $point1 ) ) {
             $pathA->end( $point1 );
             $pathB->start( $point1 );
-            push @paths, $pathA;
             push @paths, $pathB;
         }
         elsif ( $commandA->point_within_arc( $point2 ) && $commandB->point_within_arc( $point2 ) ) {
             $pathA->end( $point2 );
             $pathB->start( $point2 );
-            push @paths, $pathA;
             push @paths, $pathB;
         }
         else {
@@ -226,8 +224,9 @@ sub arc_to_arc {
                 end    => $pathB->start,
                 radius => $self->tool_radius,
             } );
-            push @paths, $pathA;
-            push @paths, $new_path;
+            if ( !$new_path->start->equal( $new_path->end ) ) {
+                push @paths, $new_path;
+            }
             push @paths, $pathB;
         }
     }
@@ -237,8 +236,9 @@ sub arc_to_arc {
             end    => $pathB->start,
             radius => $self->tool_radius,
         } );
-        push @paths, $pathA;
-        push @paths, $new_path;
+        if ( !$new_path->start->equal( $new_path->end ) ) {
+            push @paths, $new_path;
+        }
         push @paths, $pathB;
     }
 
@@ -262,7 +262,6 @@ sub arc_to_line {
             start  => $pathA->end,
             end    => $pathB->start,
         } );
-        push @paths, $pathA;
         push @paths, $new_path;
         push @paths, $pathB;
         return @paths;
@@ -280,7 +279,6 @@ sub arc_to_line {
 
     $pathA->end( $closest );
     $pathB->start( $closest );
-    push @paths, $pathA;
     push @paths, $pathB;
 
     return @paths;
@@ -300,7 +298,6 @@ sub line_to_line {
     if ( $point ) {
         $pathA->end( $point );
         $pathB->start( $point );
-        push @paths, $pathA;
         push @paths, $pathB;
     }
 
@@ -324,7 +321,6 @@ sub line_to_arc {
             start  => $pathA->end,
             end    => $pathB->start,
         } );
-        push @paths, $pathA;
         push @paths, $new_path;
         push @paths, $pathB;
         return @paths;
@@ -342,7 +338,6 @@ sub line_to_arc {
 
     $pathA->end( $closest );
     $pathB->start( $closest );
-    push @paths, $pathA;
     push @paths, $pathB;
 
     return @paths;
