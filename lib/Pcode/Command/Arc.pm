@@ -59,7 +59,7 @@ sub center {
     # q == distance between two points
     my $q = sqrt( ( $ex - $sx ) ** 2 + ( $ey - $sy ) ** 2 );
 
-    return if $q < 1;
+    return if $q <= 0;
 
     if ( ( $r * 2 ) < $q ) {
         $r = $q / 2;

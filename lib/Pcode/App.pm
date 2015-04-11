@@ -22,6 +22,7 @@ use Pcode::App::KeyHandler;
 use Pcode::App::RightMenu;
 use Pcode::App::CodeWindow;
 use Pcode::App::PropContainer;
+use Pcode::App::GcodeWindow;
 
 has 'win' => (
     is  => 'rw',
@@ -179,6 +180,12 @@ has 'code_window' => (
     documentation => "The code editing area",
 );
 
+has 'gcode_window' => (
+    is  => 'rw',
+    isa => 'Pcode::App::GcodeWindow',
+    documentation => "The code editing area",
+);
+
 has 'state' => (
     is  => 'rw',
     isa => 'Pcode::App::File::Native',
@@ -246,6 +253,9 @@ sub build_gui {
 
     my $prop_box = Pcode::App::PropContainer->new( { app => $self } );
     $self->prop_box( $prop_box );
+
+    my $gcode_window = Pcode::App::GcodeWindow->new( { app => $self } );
+    $self->gcode_window( $gcode_window );
 
     $right_menu->widget->pack_start( $object_tree->widget, TRUE, TRUE, 0 );
     $right_menu->widget->pack_start( $code_window->widget, TRUE, TRUE, 0 );
@@ -775,12 +785,8 @@ sub render {
 
 sub generate_gcode {
     my ( $self ) = @_;
-
-    my $prev_path;
-    $self->paths->foreach( sub {
-        my ( $path ) = @_;
-        print "GCODE!!!!\n";
-    } );
+    my $gcode = $self->paths->generate_gcode;
+    $self->gcode_window->show_gcode( $gcode );
 }
 
 sub run {

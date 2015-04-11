@@ -33,6 +33,13 @@ sub last {
     return;
 }
 
+sub first {
+    my ( $self ) = @_;
+    my $list = $self->list;
+    return $list->[0] if @{ $list };
+    return;
+}
+
 sub clear {
     my ( $self ) = @_;
     my $list = $self->list;

@@ -399,4 +399,9 @@ sub translate {
     $self->regenerate_tool_paths;
 }
 
+sub generate_gcode {
+    my ( $self ) = @_;
+    return $self->tool_paths->generate_gcode;
+}
+
 1;

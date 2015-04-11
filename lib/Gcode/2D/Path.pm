@@ -32,8 +32,8 @@ has cut_depth => (
 
 has path => (
     is  => 'rw',
-    isa => 'ArrayRef',
-    default => sub { [ ] },
+    isa => 'Gcode::Path',
+    required => 1,
     documentation => 'The commands making up a path',
 );
 
@@ -43,33 +43,6 @@ has gcode => (
     default => sub { [ ] },
     documentation => 'The gcode',
 );
-
-has start_x => (
-    is  => 'rw',
-    isa => 'Num',
-    default => 0,
-    documentation => 'The path starting X',
-);
-
-has start_y => (
-    is  => 'rw',
-    isa => 'Num',
-    default => 0,
-    documentation => 'The path starting Y',
-);
-
-sub set_start_position {
-    my ( $self, $x, $y ) = @_;
-    $self->start_x( $x );
-    $self->start_y( $y );
-}
-
-sub add_command {
-    my ( $self, $command ) = @_;
-    my $path = $self->path;
-    push @{ $path }, $command;
-    $self->path( $path );
-}
 
 sub generate {
     my ( $self ) = @_;
@@ -86,30 +59,32 @@ sub generate {
 
     for my $cut_nr ( 1 .. $nr_full_cuts ) {
         
-        $self->move_to_start;
+        $self->move_to( $self->path->start_X, $self->path->start_Y );
         $self->move_down_to( $current_depth );
 
         $current_depth = $current_depth - $self->cut_depth;
 
         $self->cut_down_to( $current_depth );
 
-        for my $command ( @{ $self->path } ) {
-            $self->_add( $command );
-        }
+        $self->path->foreach( sub {
+            my ( $command ) = @_;
+            $self->_add( $command->gcode );
+        } );
 
         $self->raise_above_work;
     }
 
-    $self->move_to_start;
+    $self->move_to( $self->path->start_X, $self->path->start_Y );
     $self->move_down_to( $current_depth );
 
     $current_depth = $current_depth - $last_cut_depth;
 
     $self->cut_down_to( $current_depth );
 
-    for my $command ( @{ $self->path } ) {
-        $self->_add( $command );
-    }
+    $self->path->foreach( sub {
+        my ( $command ) = @_;
+        $self->_add( $command->gcode );
+    } );
 
     $self->raise_above_work;
 
@@ -136,9 +111,9 @@ sub cut_down_to {
     $self->_add( "G1 Z%0.2f", $depth );
 }
 
-sub move_to_start {
-    my ( $self ) = @_;
-    $self->_add( "G0 X%0.2f Y%0.2f", $self->start_x, $self->start_y );
+sub move_to {
+    my ( $self, $x, $y ) = @_;
+    $self->_add( "G0 X%0.2f Y%0.2f", $x, $y );
 }
 
 sub _add {

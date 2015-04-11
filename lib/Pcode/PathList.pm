@@ -30,4 +30,17 @@ sub translate {
     } );
 }
 
+sub generate_gcode {
+    my ( $self ) = @_;
+
+    my $gcode = "";
+    $self->foreach( sub {
+        my ( $path ) = @_;
+        $gcode .= $path->generate_gcode;
+        $gcode .= "\n";
+    } );
+
+    return $gcode;
+}
+
 1;

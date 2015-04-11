@@ -2,6 +2,11 @@ package Pcode::CommandList;
 
 use Moose;
 use Pcode::Point;
+use Gcode::Path;
+use Gcode::2D::Path;
+use Gcode::Command::LineTo;
+use Gcode::Command::ArcOffset;
+
 with 'Pcode::Role::List';
 
 sub detect_point_snap {
@@ -64,6 +69,64 @@ sub stringify {
     } );
 
     return join( "\n", @commands );
+}
+
+sub generate_gcode {
+    my ( $self ) = @_;
+
+    my $gcode_path = Gcode::Path->new();
+    my $first_command = $self->first;
+
+    my $x = $first_command->start->X;
+    my $y = $first_command->start->Y;
+
+    $gcode_path->set_start_position( $x, $y );
+
+    $self->foreach( sub {
+        my ( $command ) = @_;
+        my $gcode_command = $self->generate_gcode_command( $command );
+        $gcode_path->add_command( $gcode_command );
+    } );
+
+    my $path2d = Gcode::2D::Path->new( {
+        work_thickness => 5.4,
+        path           => $gcode_path,
+    } );
+
+    return $path2d->generate;
+}
+
+sub generate_gcode_command {
+    my ( $self, $command ) = @_;
+
+    my $gcode;
+
+    if ( $command->isa( 'Pcode::Command::Line' ) ) {
+        $gcode = Gcode::Command::LineTo->new( {
+            X => $command->end->X,
+            Y => $command->end->Y,
+        } );
+    }
+    elsif ( $command->isa( 'Pcode::Command::Arc' ) ) {
+
+        my $center = $command->center;
+
+        my $sX = $command->start->X;
+        my $sY = $command->start->Y;
+
+        my $I = $center->X - $sX;
+        my $J = $center->Y - $sY;
+
+        $gcode = Gcode::Command::ArcOffset->new( {
+            X => $command->end->X,
+            Y => $command->end->Y,
+            I => $I,
+            J => $J,
+            clockwise => $command->clockwise,
+        } );
+    }
+
+    return $gcode;
 }
 
 1;
