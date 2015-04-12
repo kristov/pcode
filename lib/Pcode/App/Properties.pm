@@ -79,8 +79,8 @@ sub edit_properties {
             elsif ( $property->{type} eq 'Bool' ) {
                 $widget = $self->bool_widget( $obj, $name, $value, $property->{hook} );
             }
-            $table->attach( $label, 0, 1, $count, $count + 1, [ 'fill' ], [ 'fill' ], 0, 0 );
-            $table->attach( $widget, 1, 2, $count, $count + 1, [ 'fill' ], [ 'fill' ], 0, 0 );
+            $table->attach( $label, 0, 1, $count, $count + 1, [ 'fill' ], [ 'fill' ], 5, 5 );
+            $table->attach( $widget, 1, 2, $count, $count + 1, [ 'fill' ], [ 'fill' ], 5, 5 );
             $count++;
         }
     }

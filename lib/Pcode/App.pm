@@ -257,9 +257,11 @@ sub build_gui {
     my $gcode_window = Pcode::App::GcodeWindow->new( { app => $self } );
     $self->gcode_window( $gcode_window );
 
-    $right_menu->widget->pack_start( $object_tree->widget, TRUE, TRUE, 0 );
-    $right_menu->widget->pack_start( $code_window->widget, TRUE, TRUE, 0 );
-    $right_menu->widget->pack_start( $prop_box->widget, TRUE, TRUE, 0 );
+    $right_menu->add( {
+        object_tree => $object_tree,
+        code_window => $code_window,
+        prop_box    => $prop_box,
+    } );
 
     $hbox->pack_start( $side_menu->widget, FALSE, FALSE, 0 );
     $hbox->pack_start( $self->da, TRUE, TRUE, 0 );
