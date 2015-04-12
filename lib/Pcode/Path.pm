@@ -21,7 +21,7 @@ has 'tool_paths' => (
 has 'tool_radius' => (
     is  => 'rw',
     isa => 'Num',
-    default => 2.4,
+    default => 1.5,
     documentation => 'Tool radius in mm',
 );
 
@@ -206,6 +206,11 @@ sub arc_to_arc {
     my @paths;
 
     my ( $point1, $point2 ) = $pathB->intersection_arc( $pathA );
+    
+    if ( $pathA->end->equal( $pathB->start ) ) {
+        push @paths, $pathB;
+        return @paths;
+    }
     
     if ( $point1 && $point2 ) {
         if ( $commandA->point_within_arc( $point1 ) && $commandB->point_within_arc( $point1 ) ) {
@@ -395,8 +400,8 @@ sub translate {
 }
 
 sub generate_gcode {
-    my ( $self ) = @_;
-    return $self->tool_paths->generate_gcode;
+    my ( $self, $machine_center ) = @_;
+    return $self->tool_paths->generate_gcode( $machine_center );
 }
 
 1;

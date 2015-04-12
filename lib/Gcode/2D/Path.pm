@@ -26,7 +26,7 @@ has overcut => (
 has cut_depth => (
     is  => 'rw',
     isa => 'Num',
-    default => 0.5,
+    default => 1,
     documentation => 'How much to go down per cut',
 );
 

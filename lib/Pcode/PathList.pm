@@ -31,12 +31,12 @@ sub translate {
 }
 
 sub generate_gcode {
-    my ( $self ) = @_;
+    my ( $self, $machine_center ) = @_;
 
     my $gcode = "";
     $self->foreach( sub {
         my ( $path ) = @_;
-        $gcode .= $path->generate_gcode;
+        $gcode .= $path->generate_gcode( $machine_center );
         $gcode .= "\n";
     } );
 

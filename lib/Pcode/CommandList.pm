@@ -9,6 +9,12 @@ use Gcode::Command::ArcOffset;
 
 with 'Pcode::Role::List';
 
+has invert_axis => (
+    is  => 'rw',
+    isa => 'Bool',
+    default => 0,
+);
+
 sub detect_point_snap {
     my ( $self, $app, $current_point, $res ) = @_;
 
@@ -72,24 +78,38 @@ sub stringify {
 }
 
 sub generate_gcode {
-    my ( $self ) = @_;
+    my ( $self, $machine_center ) = @_;
+
+    my $mX = $machine_center->X;
+    my $mY = $machine_center->Y;
 
     my $gcode_path = Gcode::Path->new();
     my $first_command = $self->first;
 
-    my $x = $first_command->start->X;
-    my $y = $first_command->start->Y;
+    my ( $x, $y );
+    if ( $self->invert_axis ) {
+        $x = $first_command->start->Y;
+        $y = $first_command->start->X;
+    }
+    else {
+        $x = $first_command->start->X;
+        $y = $first_command->start->Y;
+    }
+
+    $x = $x - $mX;
+    $y = $y - $mY;
 
     $gcode_path->set_start_position( $x, $y );
 
     $self->foreach( sub {
         my ( $command ) = @_;
-        my $gcode_command = $self->generate_gcode_command( $command );
+        my $gcode_command = $self->generate_gcode_command( $command, $machine_center );
         $gcode_path->add_command( $gcode_command );
     } );
 
     my $path2d = Gcode::2D::Path->new( {
-        work_thickness => 5.4,
+        work_thickness => 4.8,
+        overcut        => 0.4,
         path           => $gcode_path,
     } );
 
@@ -97,32 +117,67 @@ sub generate_gcode {
 }
 
 sub generate_gcode_command {
-    my ( $self, $command ) = @_;
+    my ( $self, $command, $machine_center ) = @_;
+
+    my $mX = $machine_center->X;
+    my $mY = $machine_center->Y;
 
     my $gcode;
 
+    my ( $x, $y );
+    if ( $self->invert_axis ) {
+        $x = $command->end->Y;
+        $y = $command->end->X;
+    }
+    else {
+        $x = $command->end->X;
+        $y = $command->end->Y;
+    }
+
+    $x = $x - $mX;
+    $y = $y - $mY;
+
     if ( $command->isa( 'Pcode::Command::Line' ) ) {
         $gcode = Gcode::Command::LineTo->new( {
-            X => $command->end->X,
-            Y => $command->end->Y,
+            X => $x,
+            Y => $y,
+            feed_rate => 100,
         } );
     }
     elsif ( $command->isa( 'Pcode::Command::Arc' ) ) {
 
         my $center = $command->center;
 
-        my $sX = $command->start->X;
-        my $sY = $command->start->Y;
+        my ( $cX, $cY );
+        my ( $sX, $sY );
+        if ( $self->invert_axis ) {
+            $sX = $command->start->Y;
+            $sY = $command->start->X;
+            $cX = $center->Y;
+            $cY = $center->X;
+        }
+        else {
+            $sX = $command->start->X;
+            $sY = $command->start->Y;
+            $cX = $center->X;
+            $cY = $center->Y;
+        }
 
-        my $I = $center->X - $sX;
-        my $J = $center->Y - $sY;
+        $sX = $sX - $mX;
+        $sY = $sY - $mY;
+        $cX = $cX - $mX;
+        $cY = $cY - $mY;
+
+        my $I = $cX - $sX;
+        my $J = $cY - $sY;
 
         $gcode = Gcode::Command::ArcOffset->new( {
-            X => $command->end->X,
-            Y => $command->end->Y,
+            X => $x,
+            Y => $y,
             I => $I,
             J => $J,
             clockwise => $command->clockwise,
+            feed_rate => 100,
         } );
     }
 
