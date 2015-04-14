@@ -93,6 +93,25 @@ sub generate {
     return join( "\n", @{ $self->gcode } );
 }
 
+sub generate_test {
+    my ( $self ) = @_;
+
+    $self->set_absolute;
+    $self->raise_above_work;
+
+    $self->move_to( $self->path->start_X, $self->path->start_Y );
+
+    $self->path->foreach( sub {
+        my ( $command ) = @_;
+        $self->_add( $command->gcode );
+    } );
+
+    $self->move_to( 0, 0 );
+    $self->move_down_to( 0 );
+
+    return join( "\n", @{ $self->gcode } );
+}
+
 sub set_absolute {
     my ( $self ) = @_;
     $self->_add( "G90" );
