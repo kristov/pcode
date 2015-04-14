@@ -25,6 +25,21 @@ has 'tool_radius' => (
     documentation => 'Tool radius in mm',
 );
 
+has depth => (
+    is  => 'rw',
+    isa => 'Num',
+    required => 1,
+    default => 4.8,
+    documentation => 'The depth of the cut in mm',
+);
+
+has 'overcut' => (
+    is  => 'rw',
+    isa => 'Num',
+    default => 0.2,
+    documentation => 'How much to cut under the depth',
+);
+
 has 'flip' => (
     is  => 'rw',
     isa => 'Bool',
@@ -52,6 +67,16 @@ sub properties {
                 my ( $self ) = @_;
                 $self->regenerate_tool_paths,
             },
+        },
+        {
+            name  => 'depth',
+            label => 'Depth',
+            type  => 'Num',
+        },
+        {
+            name  => 'overcut',
+            label => 'Overcut',
+            type  => 'Num',
         },
     ];
 }
@@ -385,6 +410,8 @@ sub serialize {
 
     return {
         tool_radius => $self->tool_radius,
+        depth       => $self->depth,
+        overcut     => $self->overcut,
         flip        => $self->flip,
         commands    => $objects,
     };
@@ -401,7 +428,14 @@ sub translate {
 
 sub generate_gcode {
     my ( $self, $machine_center ) = @_;
-    return $self->tool_paths->generate_gcode( $machine_center );
+    return $self->tool_paths->generate_gcode( {
+        offset  => {
+            X => $machine_center->X,
+            Y => $machine_center->Y,
+        },
+        depth   => $self->depth,
+        overcut => $self->overcut,
+    } );
 }
 
 1;

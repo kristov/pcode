@@ -87,6 +87,8 @@ sub generate {
     } );
 
     $self->raise_above_work;
+    $self->move_to( 0, 0 );
+    $self->move_down_to( 0 );
 
     return join( "\n", @{ $self->gcode } );
 }

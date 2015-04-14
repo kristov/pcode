@@ -78,10 +78,13 @@ sub stringify {
 }
 
 sub generate_gcode {
-    my ( $self, $machine_center ) = @_;
+    my ( $self, $args ) = @_;
 
-    my $mX = $machine_center->X;
-    my $mY = $machine_center->Y;
+    my ( $mX, $mY ) = ( 0, 0 );
+    if ( $args->{offset} ) {
+        $mX = $args->{offset}->{X};
+        $mY = $args->{offset}->{Y};
+    }
 
     my $gcode_path = Gcode::Path->new();
     my $first_command = $self->first;
@@ -103,13 +106,13 @@ sub generate_gcode {
 
     $self->foreach( sub {
         my ( $command ) = @_;
-        my $gcode_command = $self->generate_gcode_command( $command, $machine_center );
+        my $gcode_command = $self->generate_gcode_command( $command, $mX, $mY );
         $gcode_path->add_command( $gcode_command );
     } );
 
     my $path2d = Gcode::2D::Path->new( {
-        work_thickness => 4.8,
-        overcut        => 0.4,
+        work_thickness => $args->{depth},
+        overcut        => $args->{overcut},
         path           => $gcode_path,
     } );
 
@@ -117,10 +120,10 @@ sub generate_gcode {
 }
 
 sub generate_gcode_command {
-    my ( $self, $command, $machine_center ) = @_;
+    my ( $self, $command, $mX, $mY ) = @_;
 
-    my $mX = $machine_center->X;
-    my $mY = $machine_center->Y;
+    $mX ||= 0;
+    $mY ||= 0;
 
     my $gcode;
 

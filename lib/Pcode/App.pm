@@ -526,7 +526,7 @@ sub mov_mode_click {
 sub mce_mode_click {
     my ( $self, $point, $snap_point ) = @_;
     $self->machine_center( $snap_point || $point );
-    $self->invalidate;
+    $self->state_change;
 }
 
 sub pce_mode_click {

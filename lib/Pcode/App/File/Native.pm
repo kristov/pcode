@@ -55,8 +55,11 @@ sub save {
         $document->{$prop} = $self->app->$prop;
     }
 
-    if ( $self->app->zoom ) {
-        $document->{zoom} = $self->app->zoom;
+    if ( $self->app->machine_center ) {
+        $document->{machine_center} = {
+            X => $self->app->machine_center->X,
+            Y => $self->app->machine_center->Y,
+        };
     }
 
     if ( $self->app->snaps ) {
@@ -129,6 +132,11 @@ sub load {
         }
     }
 
+    if ( $document->{machine_center} ) {
+        $self->app->machine_center->X( $document->{machine_center}->{X} );
+        $self->app->machine_center->Y( $document->{machine_center}->{Y} );
+    }
+
     if ( $document->{snaps} ) {
         $self->deserialize_snaps( $document->{snaps} );
     }
@@ -165,6 +173,8 @@ sub deserialize_paths {
         $first_path = $path_object if !$first_path;
 
         $path_object->tool_radius( $path->{tool_radius} ) if $path->{tool_radius};
+        $path_object->depth( $path->{depth} ) if $path->{depth};
+        $path_object->overcut( $path->{overcut} ) if $path->{overcut};
         $path_object->flip( $path->{flip} ) if $path->{flip};
 
         for my $command ( @{ $path->{commands} } ) {
