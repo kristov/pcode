@@ -162,9 +162,13 @@ sub regenerate_tool_paths {
     if ( $prev_command ) {
         if ( $prev_command->end->equal( $first_command->start ) ) {
             my @generated = $self->path_between( $prev_command, $first_command, $prev_path );
-            my $first_generated = $generated[0];
-            my $last_generated = $generated[-1];
-            $first_path->start( $last_generated->start );
+            if ( @generated ) {
+                my $last_generated = $generated[-1];
+                $first_path->start( $last_generated->start );
+            }
+            elsif ( $paths[-1]->end->equal( $first_path->start ) ) {
+                $first_path->start( $paths[-1]->end );
+            }
         }
     }
 
