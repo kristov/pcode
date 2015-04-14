@@ -2,10 +2,11 @@
 
 use strict;
 use warnings;
-use lib qw( /home/ceade/src/personal/perl/pcode/lib );
 use Carp;
 $SIG{__DIE__} = \&Carp::confess;
 $SIG{__WARN__} = \&Carp::confess;
+use FindBin '$RealBin';
+use lib "$RealBin/../lib";
 use Pcode::App;
 my $args = $ARGV[0] ? { file => $ARGV[0] } : ();
 my $app = Pcode::App->new( $args ? $args : () );
