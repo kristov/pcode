@@ -89,6 +89,8 @@ sub generate_gcode {
     my $gcode_path = Gcode::Path->new();
     my $first_command = $self->first;
 
+    return if !$first_command;
+
     my ( $x, $y );
     if ( $self->invert_axis ) {
         $x = $first_command->start->Y;
@@ -116,7 +118,7 @@ sub generate_gcode {
         path           => $gcode_path,
     } );
 
-    return $path2d->generate;
+    return $path2d;
 }
 
 sub generate_gcode_command {

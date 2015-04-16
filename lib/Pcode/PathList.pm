@@ -33,14 +33,19 @@ sub translate {
 sub generate_gcode {
     my ( $self, $machine_center ) = @_;
 
-    my $gcode = "";
+    my $full_gcode = "";
+    my $test_gcode = "";
+
     $self->foreach( sub {
         my ( $path ) = @_;
-        $gcode .= $path->generate_gcode( $machine_center );
-        $gcode .= "\n";
+        my $gcode_obj = $path->generate_gcode( $machine_center );
+        $full_gcode .= $gcode_obj->generate;
+        $full_gcode .= "\n";
+        $test_gcode .= $gcode_obj->generate_test;
+        $test_gcode .= "\n";
     } );
 
-    return $gcode;
+    return ( $full_gcode, $test_gcode );
 }
 
 1;

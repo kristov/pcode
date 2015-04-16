@@ -16,7 +16,13 @@ has 'widget' => (
     documentation => 'The widget to render',
 );
 
-has 'text' => (
+has 'full_text' => (
+    is  => 'rw',
+    isa => 'Object',
+    documentation => 'Text object',
+);
+
+has 'test_text' => (
     is  => 'rw',
     isa => 'Object',
     documentation => 'Text object',
@@ -28,88 +34,53 @@ sub BUILD {
     my $window = Gtk2::Window->new( 'toplevel' );
     $window->signal_connect( delete_event => \&Gtk2::Widget::hide_on_delete );
 
-    my $scroll = Gtk2::ScrolledWindow->new( undef, undef );
-    $scroll->set_shadow_type( 'etched-out' );
-    $scroll->set_policy( 'automatic', 'automatic' );
-    $scroll->set_size_request( 300, 200 );
-    $scroll->set_border_width( 5 );
+    my $full_scroll = Gtk2::ScrolledWindow->new( undef, undef );
+    $full_scroll->set_shadow_type( 'etched-out' );
+    $full_scroll->set_policy( 'automatic', 'automatic' );
+    $full_scroll->set_size_request( 300, 200 );
+    $full_scroll->set_border_width( 5 );
 
-    my $text = Gtk2::TextView->new();
-    $self->text( $text );
-    my $buffer = $text->get_buffer;
+    my $test_scroll = Gtk2::ScrolledWindow->new( undef, undef );
+    $test_scroll->set_shadow_type( 'etched-out' );
+    $test_scroll->set_policy( 'automatic', 'automatic' );
+    $test_scroll->set_size_request( 300, 200 );
+    $test_scroll->set_border_width( 5 );
 
-    $scroll->add( $text );
+    my $full_text = Gtk2::TextView->new();
+    $self->full_text( $full_text );
 
-    $window->add( $scroll );
+    my $test_text = Gtk2::TextView->new();
+    $self->test_text( $test_text );
+
+    $full_scroll->add( $full_text );
+    $test_scroll->add( $test_text );
+
+    my $nb = Gtk2::Notebook->new();
+
+    $nb->append_page( $full_scroll, "Full G-code" );
+    $nb->append_page( $test_scroll, "Test G-code" );
+
+    $window->add( $nb );
 
     $self->widget( $window );
 }
 
 sub show_gcode {
-    my ( $self, $gcode ) = @_;
+    my ( $self, $full_gcode, $test_gcode ) = @_;
+    $self->show_gcode_widget( $full_gcode, $self->full_text );
+    $self->show_gcode_widget( $test_gcode, $self->test_text );
+    $self->widget->show_all;
+}
 
-    my $textarea = $self->text;
+sub show_gcode_widget {
+    my ( $self, $gcode, $textarea ) = @_;
     my $buffer = $textarea->get_buffer;
     $buffer->set_text( $gcode );
-
-    $self->widget->show_all;
 }
 
 sub hide {
     my ( $self ) = @_;
     $self->widget->hide;
-}
-
-sub parse_code {
-    my ( $self ) = @_;
-    
-    my $textarea = $self->text;
-    
-    my $buffer = $textarea->get_buffer;
-    my $text = $buffer->get_text( $buffer->get_start_iter, $buffer->get_end_iter, 1 );
-    
-    my $things = $self->parse_text( $text );
-
-    $self->app->snaps->clear;
-    for my $thing ( @{ $things } ) {
-        my ( $name, $args ) = @{ $thing };
-        my $object = $self->app->create_object( 'snap', $name, $args );
-        if ( $object ) {
-            $self->app->snaps->append( $object );
-        }
-    }
-    $self->app->snaps->recalculate_points;
-}
-
-sub parse_text {
-    my ( $self, $text ) = @_;
-
-    my $things = [];
-
-    my @lines = split( /\n/, $text );
-    for my $line ( @lines ) {
-        my $command_def = $self->parse_line( $line );
-        push @{ $things }, $command_def if $command_def;
-    }
-
-    return $things;
-}
-
-sub parse_line {
-    my ( $self, $line ) = @_;
-    my $thing;
-    if ( $line =~ /^([a-z]+)\s*\(([^\)]+)\)/ ) {
-        my ( $command, $argspec ) = ( $1, $2 );
-        my $args = $self->parse_argspec( $argspec );
-        $thing = [ $command, $args ] if @{ $args };
-    }
-    return $thing ? $thing : ();
-}
-
-sub parse_argspec {
-    my ( $self, $argspec ) = @_;
-    my @parts = split( /\s*,\s*/, $argspec );
-    return @parts ? \@parts : ();
 }
 
 1;

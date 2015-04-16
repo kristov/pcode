@@ -47,6 +47,8 @@ has gcode => (
 sub generate {
     my ( $self ) = @_;
 
+    $self->gcode( [] );
+
     my $nr_full_cuts = int( $self->work_thickness / $self->cut_depth );
     my $remainder = $self->work_thickness - ( $nr_full_cuts * $self->cut_depth );
 
@@ -95,6 +97,8 @@ sub generate {
 
 sub generate_test {
     my ( $self ) = @_;
+
+    $self->gcode( [] );
 
     $self->set_absolute;
     $self->raise_above_work;

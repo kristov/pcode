@@ -787,8 +787,8 @@ sub render {
 
 sub generate_gcode {
     my ( $self ) = @_;
-    my $gcode = $self->paths->generate_gcode( $self->machine_center );
-    $self->gcode_window->show_gcode( $gcode );
+    my ( $full_gcode, $test_gcode ) = $self->paths->generate_gcode( $self->machine_center );
+    $self->gcode_window->show_gcode( $full_gcode, $test_gcode );
 }
 
 sub run {
