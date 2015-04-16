@@ -32,12 +32,6 @@ has 'default_working_file' => (
     documentation => 'The default working file',
 );
 
-has 'current_file' => (
-    is  => 'rw',
-    isa => 'Str',
-    documentation => 'Whatever file we are working on',
-);
-
 my @APP_SETTINGS = qw(
     width
     height
@@ -46,8 +40,13 @@ my @APP_SETTINGS = qw(
     y_offset
 );
 
-sub save {
+sub save_tmp {
     my ( $self ) = @_;
+    $self->save( $self->default_working_file );
+}
+
+sub save {
+    my ( $self, $file ) = @_;
 
     my $document = {};
 
@@ -72,11 +71,11 @@ sub save {
 
     my $string = $self->json->encode( $document );
 
-    if ( !$self->current_file || !$self->file->can_write( $self->current_file ) ) {
-        $self->current_file( $self->default_working_file );
-    }
-
-    $self->file->write_file( file => $self->current_file, content => $string );
+    $self->file->write_file(
+        file    => $file,
+        content => $string,
+        bitmask => 0644,
+    );
 }
 
 sub serialize_snaps {
@@ -117,10 +116,6 @@ sub load_working_file {
 
 sub load {
     my ( $self, $file ) = @_;
-
-    if ( $self->file->can_write( $file ) ) {
-        $self->current_file( $file );
-    }
 
     my $string = $self->file->load_file( $file );
 

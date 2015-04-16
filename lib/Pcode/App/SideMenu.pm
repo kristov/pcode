@@ -30,6 +30,7 @@ sub BUILD {
         [ "Zoom out",           'zot',  sub { $self->app->zoom_out } ],
         [ "Generate G-CODE",    'gcd',  sub { $self->app->generate_gcode } ],
         [ "Delete all paths",   'clr',  sub { $self->app->clear_all } ],
+        [ "Save",               'sav',  sub { $self->save } ],
     ];
 
     my $vbox = Gtk2::VBox->new( FALSE, 0 );
@@ -67,7 +68,30 @@ sub build_button {
 
 sub icon_to_filename {
     my ( $self, $icon ) = @_;
-    return sprintf( '/home/ceade/src/personal/perl/pcode/images/%s.xpm', $icon );
+    return sprintf( '%s/images/%s.xpm', $self->app->install_dir, $icon );
+}
+
+sub save {
+    my ( $self ) = @_;
+    my $file_chooser = Gtk2::FileChooserDialog->new(
+        "Save work",
+        undef,
+        'save',
+        'gtk-cancel' => 'cancel',
+        'gtk-ok'     => 'ok',
+    );
+    #$file_chooser->add_filter($filter);
+
+    $file_chooser->set_current_name( "suggeste_this_file.name" );
+
+    my $filename;
+    if ( $file_chooser->run eq 'ok' ) {
+        $filename = $file_chooser->get_filename;
+        $self->app->file( $filename );
+        $self->app->save;
+    }
+
+    $file_chooser->destroy;
 }
 
 1;

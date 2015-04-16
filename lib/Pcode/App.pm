@@ -218,6 +218,13 @@ has 'machine_center' => (
     documentation => "The location of the machine center",
 );
 
+has 'install_dir' => (
+    is  => 'ro',
+    isa => 'Str',
+    required => 1,
+    documentation => "Where to find this code",
+);
+
 sub BUILD {
     my ( $self ) = @_;
     $self->load_file;
@@ -386,9 +393,14 @@ sub motion_notify {
 
 sub state_change {
     my ( $self ) = @_;
-    $self->state->save;
+    $self->state->save_tmp;
     $self->update_object_tree;
     $self->invalidate;
+}
+
+sub save {
+    my ( $self ) = @_;
+    $self->state->save( $self->file );
 }
 
 sub invalidate {
