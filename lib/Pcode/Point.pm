@@ -1,34 +1,7 @@
 package Pcode::Point;
 
 use Moose;
-
-has 'X' => (
-    is  => 'rw',
-    isa => 'Num',
-    default => 0,
-    documentation => "X position",
-);
-
-has 'Y' => (
-    is  => 'rw',
-    isa => 'Num',
-    default => 0,
-    documentation => "X position",
-);
-
-has 'Z' => (
-    is  => 'rw',
-    isa => 'Num',
-    default => 0,
-    documentation => "X position",
-);
-
-has 'hover' => (
-    is  => 'rw',
-    isa => 'Int',
-    default => 0,
-    documentation => "Is the mouse hovering over it",
-);
+with 'Pcode::Role::PointLike';
 
 use constant M_PI => 3.14159265;
 
@@ -51,44 +24,6 @@ sub properties {
             type  => 'Num',
         },
     ];
-}
-
-sub distance {
-    my ( $self, $point ) = @_;
-
-    my ( $x1, $y1 ) = ( $self->X, $self->Y );
-    my ( $x2, $y2 ) = ( $point->X, $point->Y );
-
-    my $q = sqrt( ( $x2 - $x1 ) ** 2 + ( $y2 - $y1 ) ** 2 );
-
-    return $q;
-}
-
-sub point_angle_distance_from {
-    my ( $self, $angle, $distance ) = @_;
-
-    my $x = ( $distance * cos( $angle ) ) + $self->X;
-    my $y = ( $distance * sin( $angle ) ) + $self->Y;
-
-    return Pcode::Point->new( { X => $x, Y => $y } );
-}
-
-sub angle_between {
-    my ( $self, $point ) = @_;
-    return atan2( ( $point->Y - $self->Y ), ( $point->X - $self->X ) );
-}
-
-sub equal {
-    my ( $self, $point ) = @_;
-    return ( $self->X == $point->X && $self->Y == $point->Y && $self->Z == $point->Z ) ? 1 : 0;
-}
-
-sub translate {
-    my ( $self, $x, $y ) = @_;
-    my $xs = $self->X;
-    my $ys = $self->Y;
-    $self->X( $xs + $x );
-    $self->Y( $ys + $y );
 }
 
 sub render {

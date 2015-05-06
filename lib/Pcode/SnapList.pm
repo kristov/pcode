@@ -51,7 +51,10 @@ sub recalculate_points {
 
     my $list = $self->list;
 
-    my %by_str_ref = map( +( "$_" => $_ ), @{ $list } );
+    my @non_points = grep { "$_" !~ /Point/ } @{ $list };
+    my @stc_points = grep { "$_" =~ /Point/ } @{ $list };
+
+    my %by_str_ref = map( +( "$_" => $_ ), @non_points );
 
     my @ordered = sort { $a cmp $b } keys %by_str_ref;
     my $endx = scalar( @ordered );
@@ -77,6 +80,14 @@ sub recalculate_points {
     $self->points->clear;
     for my $point ( @all_points ) {
         $self->points->append( $point );
+    }
+
+    for my $point ( @stc_points ) {
+        $self->points->append( Pcode::Point->new( {
+            X => $point->X,
+            Y => $point->Y,
+            Z => $point->Z,
+        } ) );
     }
 }
 
