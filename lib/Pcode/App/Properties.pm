@@ -5,7 +5,7 @@ use Glib qw( TRUE FALSE );
 
 has 'object' => (
     is  => 'rw',
-    isa => 'Object',
+    isa => 'Any',
     required => 1,
     documentation => 'The thing to edit properties for',
 );

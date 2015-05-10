@@ -14,6 +14,7 @@ use Pcode::Command::Line;
 use Pcode::Command::Arc;
 use Pcode::Snap::Circle;
 use Pcode::Snap::Line;
+use Pcode::Snap::Point;
 use Pcode::App::Properties;
 use Pcode::App::SideMenu;
 use Pcode::App::ObjectTree;
@@ -23,6 +24,9 @@ use Pcode::App::RightMenu;
 use Pcode::App::CodeWindow;
 use Pcode::App::PropContainer;
 use Pcode::App::GcodeWindow;
+use Pcode::App::TopMenu;
+
+use Module::Pluggable search_path => [ 'Pcode::Recipe' ], require => 1;
 
 has 'win' => (
     is  => 'rw',
@@ -99,7 +103,7 @@ has 'y_offset' => (
 has 'zoom' => (
     is  => 'rw',
     isa => 'Num',
-    default => 0.5,
+    default => 20,
     documentation => "Viewing window zoom",
 );
 
@@ -229,6 +233,10 @@ sub BUILD {
     my ( $self ) = @_;
     $self->load_file;
     $self->build_gui;
+
+    #my $htd = Pcode::Recipe::Object::Pulley::HTD->new( { teeth => 20, pitch => 5 } );
+    #$htd->snaps( $self );
+
     $self->update_object_tree;
     $self->update_code_window;
 }
@@ -248,7 +256,7 @@ sub build_gui {
     $self->da( Gtk2::DrawingArea->new );
     $self->da->signal_connect( expose_event => sub { $self->render( @_ ) } );
 
-    my $side_menu  = Pcode::App::SideMenu->new( { app => $self } );
+    my $left_menu  = Pcode::App::SideMenu->new( { app => $self } );
 
     my $right_menu = Pcode::App::RightMenu->new( { app => $self } );
 
@@ -264,16 +272,19 @@ sub build_gui {
     my $gcode_window = Pcode::App::GcodeWindow->new( { app => $self } );
     $self->gcode_window( $gcode_window );
 
+    my $top_menu = Pcode::App::TopMenu->new( { app => $self } );
+
     $right_menu->add( {
         object_tree => $object_tree,
         code_window => $code_window,
         prop_box    => $prop_box,
     } );
 
-    $hbox->pack_start( $side_menu->widget, FALSE, FALSE, 0 );
+    $hbox->pack_start( $left_menu->widget, FALSE, FALSE, 0 );
     $hbox->pack_start( $self->da, TRUE, TRUE, 0 );
     $hbox->pack_end( $right_menu->widget, FALSE, FALSE, 0 );
 
+    $vbox->pack_start( $top_menu->widget, FALSE, FALSE, 0 );
     $vbox->pack_start( $hbox, TRUE, TRUE, 0 );
 
     $self->da->set_events( [
@@ -578,6 +589,19 @@ sub object_selected {
     }
 }
 
+sub plugin_chosen {
+    my ( $self, $plugin_class ) = @_;
+
+    my $object = $plugin_class->new();
+
+    my $props = Pcode::App::Properties->new( { object => $object, app => $self } );
+    return if !$props;
+
+    if ( $props ) {
+        $self->prop_box->show_props( $props );
+    }
+}
+
 sub modal_edit_window {
     my ( $self, $command ) = @_;
 
@@ -700,7 +724,7 @@ sub detect_point_snap {
     my ( $self, $current_point ) = @_;
 
     my $zoom = $self->zoom;
-    my $res = 2;
+    my $res = 0.2;
 
     my $point = $self->current_path->detect_point_snap( $self, $current_point, $res );
     if ( !$point ) {
