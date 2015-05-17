@@ -94,6 +94,7 @@ sub create {
     my ( $self, $app ) = @_;
 
     my $path = $app->new_empty_path;
+    $path->name( "New HTD pulley" );
 
     my $r = $self->R1_center_radius;
     my $R1 = $self->data->{R1};
@@ -169,12 +170,12 @@ sub create {
         $last_point = $left_conn;
     }
 
-    #my $inter_tooth = $app->create_object( 'command', 'arc', [
-    #    $last_point->X, $last_point->Y,
-    #    $first_point->X, $first_point->Y,
-    #    $ODR, 0,
-    #] );
-    #$path->append_command( $inter_tooth );
+    my $inter_tooth = $app->create_object( 'command', 'arc', [
+        $last_point->X, $last_point->Y,
+        $first_point->X, $first_point->Y,
+        $ODR, 0,
+    ] );
+    $path->append_command( $inter_tooth );
 }
 
 sub connect_point_offset {

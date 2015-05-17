@@ -635,6 +635,7 @@ sub add_new_command_to_path {
     if ( $self->current_path->last_command ) {
         if ( !$self->current_path->last_command->end->equal( $self->start_point ) ) {
             my $new_path = $self->paths->new_path;
+            $self->name_path( $new_path );
             $self->current_path( $new_path );
         }
     }
@@ -642,6 +643,26 @@ sub add_new_command_to_path {
     $self->current_path->append_command( $new_command );
     $self->start_point( undef );
     $self->state_change;
+}
+
+sub name_path {
+    my ( $self, $new_path ) = @_;
+    my @numbers;
+    $self->paths->foreach( sub {
+        my ( $path ) = @_;
+        if ( $path->name && $path->name =~ /\s([0-9]+)$/ ) {
+            push @numbers, $1;
+        }
+    } );
+    if ( @numbers ) {
+        my @sorted = sort { $b <=> $a } @numbers;
+        my $number = $sorted[0];
+        $number++;
+        $new_path->name( "Path $number" );
+    }
+    else {
+        $new_path->name( "Path 0" );
+    }
 }
 
 sub create_surface {
@@ -657,6 +678,7 @@ sub do_cairo_drawing {
 
     my $surface = $self->surface();
     my $cr = Cairo::Context->create( $surface );
+    my $mode = $self->mode;
 
     if ( $self->start_point ) {
         
@@ -665,15 +687,11 @@ sub do_cairo_drawing {
         my ( $end ) = $self->translate_from_screen_coords( Pcode::Point->new( { X => $x, Y => $y } ) );
 
         my $command;
-        if ( $self->mode eq 'line' ) {
+        if ( $mode eq 'line' ) {
             $command = $self->temporary_line( $self->start_point, $end );
         }
-        elsif ( $self->mode eq 'arc' ) {
+        elsif ( $mode eq 'arc' ) {
             $command = $self->temporary_arc( $self->start_point, $end );
-        }
-        elsif ( $self->mode ) {
-            my $class = $self->mode;
-            $command = $class->sample if $class->can( 'sample' );
         }
 
         if ( $command ) {

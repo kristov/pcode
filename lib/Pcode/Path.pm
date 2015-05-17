@@ -18,6 +18,12 @@ has 'tool_paths' => (
     documentation => 'List of tool paths',
 );
 
+has name => (
+    is  => 'rw',
+    isa => 'Str',
+    documentation => 'The name of the path',
+);
+
 has 'tool_radius' => (
     is  => 'rw',
     isa => 'Num',
@@ -50,6 +56,11 @@ has 'flip' => (
 sub properties {
     my ( $self ) = @_;
     return [
+        {
+            name  => 'name',
+            label => 'Name',
+            type  => 'Str',
+        },
         {
             name  => 'tool_radius',
             label => 'Tool radius',
@@ -413,6 +424,7 @@ sub serialize {
     } );
 
     return {
+        name        => $self->name,
         tool_radius => $self->tool_radius,
         depth       => $self->depth,
         overcut     => $self->overcut,

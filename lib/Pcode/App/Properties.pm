@@ -79,6 +79,9 @@ sub edit_properties {
             elsif ( $property->{type} eq 'Bool' ) {
                 $widget = $self->bool_widget( $obj, $name, $value, $property->{hook} );
             }
+            elsif ( $property->{type} eq 'Str' ) {
+                $widget = $self->string_widget( $obj, $name, $value, $property->{hook} );
+            }
             $table->attach( $label, 0, 1, $count, $count + 1, [ 'fill' ], [ 'fill' ], 5, 5 );
             $table->attach( $widget, 1, 2, $count, $count + 1, [ 'fill' ], [ 'fill' ], 5, 5 );
             $count++;
@@ -138,6 +141,30 @@ sub bool_widget {
     }, $data );
 
     return $button;
+}
+
+sub string_widget {
+    my ( $self, $object, $name, $value, $hook ) = @_;
+
+    my $data = { object => $object, name => $name, hook => $hook };
+
+    my $entry = Gtk2::Entry->new();
+    $entry->set_text( $value ) if defined $value;
+    $entry->signal_connect( changed => sub {
+        my ( $widget, $info ) = @_;
+
+        my $value = $widget->get_text();
+        my $object = $info->{object};
+        my $name = $info->{name};
+
+        $object->$name( $value );
+        if ( $info->{hook} ) {
+            $info->{hook}->( $object );
+        }
+        $self->app->state_change;
+    }, $data );
+
+    return $entry;
 }
 
 1;

@@ -161,16 +161,23 @@ sub deserialize_paths {
 
     $self->app->paths->clear;
 
+    my @path_properties = qw(
+        name
+        tool_radius
+        depth
+        overcut
+        flip
+    );
+
     my $first_path;
     for my $path ( @{ $paths } ) {
         
         my $path_object = Pcode::Path->new();
         $first_path = $path_object if !$first_path;
 
-        $path_object->tool_radius( $path->{tool_radius} ) if $path->{tool_radius};
-        $path_object->depth( $path->{depth} ) if $path->{depth};
-        $path_object->overcut( $path->{overcut} ) if $path->{overcut};
-        $path_object->flip( $path->{flip} ) if $path->{flip};
+        for my $prop ( @path_properties ) {
+            $path_object->$prop( $path->{$prop} ) if $path->{$prop};
+        }
 
         for my $command ( @{ $path->{commands} } ) {
             my ( $name, $args ) = @{ $command };

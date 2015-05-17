@@ -87,12 +87,11 @@ sub build_tree {
     $self->tree_view->set_model( undef );
     $tree_store->clear;
 
-    my $path_count = 0;
     $self->app->paths->foreach( sub {
         my ( $path ) = @_;
 
         my $iter = $tree_store->append( undef );
-        $tree_store->set( $iter, 0 => "Path $path_count" );
+        $tree_store->set( $iter, 0 => $path->name );
         $tree_store->set( $iter, 1 => $path );
 
         $path->commands->foreach( sub {
@@ -109,8 +108,6 @@ sub build_tree {
             $tree_store->set( $iter_child, 0 => "$str" );
             $tree_store->set( $iter_child, 1 => $command );
         } );
-
-        $path_count++;
     } );
 
     $self->tree_view->set_model( $tree_store );
