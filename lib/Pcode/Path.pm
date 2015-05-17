@@ -136,7 +136,6 @@ sub stringify {
 sub append_command {
     my ( $self, $command ) = @_;
     $self->commands->append( $command );
-    $self->regenerate_tool_paths;
 }
 
 sub last_command {

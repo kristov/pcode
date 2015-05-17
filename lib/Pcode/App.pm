@@ -384,12 +384,6 @@ sub update_code_window {
     $self->code_window->update_from_snaps;
 }
 
-sub add_command {
-    my ( $self, $object ) = @_;
-    $self->current_path->append_command( $object );
-    $self->state_change;
-}
-
 sub motion_notify {
     my ( $self, $widget, $event, $data ) = @_;
     my ( $x, $y ) = ( $event->x, $event->y );
@@ -642,6 +636,12 @@ sub add_new_command_to_path {
 
     $self->current_path->append_command( $new_command );
     $self->start_point( undef );
+    $self->finish_editing_path;
+}
+
+sub finish_editing_path {
+    my ( $self ) = @_;
+    $self->current_path->regenerate_tool_paths;
     $self->state_change;
 }
 

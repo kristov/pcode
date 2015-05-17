@@ -186,6 +186,7 @@ sub deserialize_paths {
         }
 
         $self->app->paths->add( $path_object );
+        $path_object->regenerate_tool_paths;
     }
 
     if ( !$first_path ) {

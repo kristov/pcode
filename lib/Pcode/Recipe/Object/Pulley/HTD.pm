@@ -176,6 +176,8 @@ sub create {
         $ODR, 0,
     ] );
     $path->append_command( $inter_tooth );
+
+    $app->finish_editing_path;
 }
 
 sub connect_point_offset {
