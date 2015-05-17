@@ -103,7 +103,7 @@ has 'y_offset' => (
 has 'zoom' => (
     is  => 'rw',
     isa => 'Num',
-    default => 20,
+    default => 18,
     documentation => "Viewing window zoom",
 );
 
@@ -233,10 +233,6 @@ sub BUILD {
     my ( $self ) = @_;
     $self->load_file;
     $self->build_gui;
-
-    #my $htd = Pcode::Recipe::Object::Pulley::HTD->new( { teeth => 20, pitch => 5 } );
-    #$htd->snaps( $self );
-
     $self->update_object_tree;
     $self->update_code_window;
 }
@@ -327,6 +323,16 @@ sub load_file {
         my $current_path = $self->paths->new_path;
         $self->current_path( $current_path );
     }
+}
+
+sub new_empty_path {
+    my ( $self ) = @_;
+    return $self->current_path if $self->current_path->nr_commands == 0;
+    
+    my $current_path = $self->paths->new_path;
+    $self->current_path( $current_path );
+
+    return $current_path;
 }
 
 sub cancel_action {
@@ -457,7 +463,9 @@ sub left_button_clicked {
     elsif ( $mode eq 'pce' ) {
         $self->pce_mode_click( $point, $snap_point );
     }
-
+    elsif ( $mode ) {
+        $self->plugin_click( $mode, $point, $snap_point );
+    }
 
     #$self->draw_line( 0 );
 
@@ -589,10 +597,16 @@ sub object_selected {
     }
 }
 
-sub plugin_chosen {
-    my ( $self, $plugin_class ) = @_;
+sub plugin_click {
+    my ( $self, $plugin_class, $point, $snap_point ) = @_;
+
+    $point = $snap_point if $snap_point;
 
     my $object = $plugin_class->new();
+    if ( $object->can( 'X' ) && $object->can( 'Y' ) ) {
+        $object->X( $point->X );
+        $object->Y( $point->Y );
+    }
 
     my $props = Pcode::App::Properties->new( { object => $object, app => $self } );
     return if !$props;
@@ -600,6 +614,8 @@ sub plugin_chosen {
     if ( $props ) {
         $self->prop_box->show_props( $props );
     }
+
+    $object->create( $self );
 }
 
 sub modal_edit_window {
@@ -654,6 +670,10 @@ sub do_cairo_drawing {
         }
         elsif ( $self->mode eq 'arc' ) {
             $command = $self->temporary_arc( $self->start_point, $end );
+        }
+        elsif ( $self->mode ) {
+            my $class = $self->mode;
+            $command = $class->sample if $class->can( 'sample' );
         }
 
         if ( $command ) {

@@ -52,6 +52,26 @@ sub point_angle_distance_from {
     return Pcode::Point->new( { X => $x, Y => $y } );
 }
 
+sub closest_of_two {
+    my ( $self, $point1, $point2 ) = @_;
+
+    my $point1d = $point1->distance( $self );
+    my $point2d = $point2->distance( $self );
+
+    return $point2d > $point1d ? $point1 : $point2;
+}
+
+sub order_by_distance_asc {
+    my ( $self, @points ) = @_;
+    my %object = map { ( "$_" => $_ ) } @points;
+    my %distance;
+    for my $id ( keys %object ) {
+        $distance{$id} = $object{$id}->distance( $self );
+    }
+    my @sorted_ids = sort { $distance{$a} <=> $distance{$b} } keys %object;
+    return map { $object{$_} } @sorted_ids;
+}
+
 sub angle_between {
     my ( $self, $point ) = @_;
     return atan2( ( $point->Y - $self->Y ), ( $point->X - $self->X ) );

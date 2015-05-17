@@ -26,7 +26,7 @@ sub BUILD {
         my $label = $plugin;
         $label =~ s/^Pcode::Recipe:://;
         my $menu_item = Gtk2::MenuItem->new( $label );
-        $menu_item->signal_connect( 'activate' => sub { $self->app->plugin_chosen( $plugin ) } );
+        $menu_item->signal_connect( 'activate' => sub { $self->app->mode( $plugin ) } );
         $plugin_menu->append( $menu_item );
     }
 

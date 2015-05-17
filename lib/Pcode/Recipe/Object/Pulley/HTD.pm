@@ -50,6 +50,20 @@ has 'data' => (
     builder => '_build_data',
 );
 
+has 'X' => (
+    is      => 'rw',
+    isa     => 'Num',
+    default => 0,
+    documentation => 'X axis location',
+);
+
+has 'Y' => (
+    is      => 'rw',
+    isa     => 'Num',
+    default => 0,
+    documentation => 'Y axis location',
+);
+
 sub properties {
     my ( $self ) = @_;
     return [
@@ -63,14 +77,27 @@ sub properties {
             label => 'Tooth Pitch',
             type  => 'Num',
         },
+        {
+            name  => 'X',
+            label => 'X',
+            type  => 'Num',
+        },
+        {
+            name  => 'Y',
+            label => 'Y',
+            type  => 'Num',
+        },
     ];
 }
 
-sub snaps {
+sub create {
     my ( $self, $app ) = @_;
+
+    my $path = $app->new_empty_path;
 
     my $r = $self->R1_center_radius;
     my $R1 = $self->data->{R1};
+    my $R0 = $self->data->{R0};
 
     my $cpo = $self->connect_point_offset;
     my $ODR = $self->outside_diameter / 2;
@@ -82,32 +109,72 @@ sub snaps {
 
     my @snaps;
 
+    my $outer_circle = $app->create_object( 'snap', 'circle', [ 0, 0, $ODR ] );
+    my $R1_circle = $app->create_object( 'snap', 'circle', [ 0, 0, $self->R1_center_radius ] );
+
+    my $first_point;
+    my $last_point;
+
     for my $tooth_nr ( 0 .. ( $nr_teeth - 1 ) ) {
         my $rad = $tooth_nr * $rad_per_tooth;
-        my $x = sprintf( '%0.4f', $r * cos( $rad ) );
-        my $y = sprintf( '%0.4f', $r * sin( $rad ) );
-        push @snaps, [ 'circle', [ $x, $y, $R1 ] ];
 
         my $xp1 = sprintf( '%0.4f', $ODR * cos( $rad + $cpo ) );
         my $yp1 = sprintf( '%0.4f', $ODR * sin( $rad + $cpo ) );
-        push @snaps, [ 'point', [ $xp1, $yp1 ] ];
+        my $left_conn = Pcode::Point->new( { X => $xp1, Y => $yp1 } );
 
         my $xp2 = sprintf( '%0.4f', $ODR * cos( $rad - $cpo ) );
         my $yp2 = sprintf( '%0.4f', $ODR * sin( $rad - $cpo ) );
-        push @snaps, [ 'point', [ $xp2, $yp2 ] ];
-    }
+        my $right_conn = Pcode::Point->new( { X => $xp2, Y => $yp2 } );
 
-    push @snaps, [ 'circle', [ 0, 0, $ODR ] ];
-    push @snaps, [ 'circle', [ 0, 0, $self->R1_center_radius ] ];
+        $first_point = $right_conn if !$first_point;
 
-    for my $snap ( @snaps ) {
-        my ( $name, $args ) = @{ $snap };
+        my $x = sprintf( '%0.4f', $r * cos( $rad ) );
+        my $y = sprintf( '%0.4f', $r * sin( $rad ) );
+        my $tooth_circle = $app->create_object( 'snap', 'circle', [ $x, $y, $R1 ] );
 
-        my $object = $app->create_object( 'snap', $name, $args );
-        if ( $object ) {
-            $app->snaps->append( $object );
+        my @points = $R1_circle->intersect( $tooth_circle );
+
+        if ( $last_point ) {
+            my $inter_tooth = $app->create_object( 'command', 'arc', [
+                $last_point->X, $last_point->Y,
+                $right_conn->X, $right_conn->Y,
+                $ODR, 0,
+            ] );
+            $path->append_command( $inter_tooth );
         }
+
+        my ( $closest, $farthest ) = $right_conn->order_by_distance_asc( $points[0], $points[1] );
+
+        my $lead_in_arc = $app->create_object( 'command', 'arc', [
+            $right_conn->X, $right_conn->Y,
+            $closest->X, $closest->Y,
+            $R0, 0,
+        ] );
+        $path->append_command( $lead_in_arc );
+
+        my $tooth_arc = $app->create_object( 'command', 'arc', [
+            $closest->X, $closest->Y,
+            $farthest->X, $farthest->Y,
+            $R1, 1,
+        ] );
+        $path->append_command( $tooth_arc );
+
+        my $lead_out_arc = $app->create_object( 'command', 'arc', [
+            $farthest->X, $farthest->Y,
+            $left_conn->X, $left_conn->Y,
+            $R0, 0,
+        ] );
+        $path->append_command( $lead_out_arc );
+
+        $last_point = $left_conn;
     }
+
+    #my $inter_tooth = $app->create_object( 'command', 'arc', [
+    #    $last_point->X, $last_point->Y,
+    #    $first_point->X, $first_point->Y,
+    #    $ODR, 0,
+    #] );
+    #$path->append_command( $inter_tooth );
 }
 
 sub connect_point_offset {
@@ -185,7 +252,9 @@ sub _build_data {
     my ( $self ) = @_;
 
     my $data = {};
-    
+
+    my $data_pos = tell DATA;
+
     my $header = <DATA>;
     chomp $header;
 
@@ -209,6 +278,9 @@ sub _build_data {
 
         last;
     }
+
+    seek DATA, $data_pos, 0;
+
     return $data;
 }
 
