@@ -96,6 +96,9 @@ sub create {
     my $path = $app->new_empty_path;
     $path->name( "New HTD pulley" );
 
+    my $X = $self->X;
+    my $Y = $self->Y;
+
     my $r = $self->R1_center_radius;
     my $R1 = $self->data->{R1};
     my $R0 = $self->data->{R0};
@@ -110,8 +113,8 @@ sub create {
 
     my @snaps;
 
-    my $outer_circle = $app->create_object( 'snap', 'circle', [ 0, 0, $ODR ] );
-    my $R1_circle = $app->create_object( 'snap', 'circle', [ 0, 0, $self->R1_center_radius ] );
+    my $outer_circle = $app->create_object( 'snap', 'circle', [ $X, $Y, $ODR ] );
+    my $R1_circle = $app->create_object( 'snap', 'circle', [ $X, $Y, $self->R1_center_radius ] );
 
     my $first_point;
     my $last_point;
@@ -121,17 +124,17 @@ sub create {
 
         my $xp1 = sprintf( '%0.4f', $ODR * cos( $rad + $cpo ) );
         my $yp1 = sprintf( '%0.4f', $ODR * sin( $rad + $cpo ) );
-        my $left_conn = Pcode::Point->new( { X => $xp1, Y => $yp1 } );
+        my $left_conn = Pcode::Point->new( { X => $xp1 + $X, Y => $yp1 + $Y } );
 
         my $xp2 = sprintf( '%0.4f', $ODR * cos( $rad - $cpo ) );
         my $yp2 = sprintf( '%0.4f', $ODR * sin( $rad - $cpo ) );
-        my $right_conn = Pcode::Point->new( { X => $xp2, Y => $yp2 } );
+        my $right_conn = Pcode::Point->new( { X => $xp2 + $X, Y => $yp2 + $Y } );
 
         $first_point = $right_conn if !$first_point;
 
         my $x = sprintf( '%0.4f', $r * cos( $rad ) );
         my $y = sprintf( '%0.4f', $r * sin( $rad ) );
-        my $tooth_circle = $app->create_object( 'snap', 'circle', [ $x, $y, $R1 ] );
+        my $tooth_circle = $app->create_object( 'snap', 'circle', [ $x + $X, $y + $Y, $R1 ] );
 
         my @points = $R1_circle->intersect( $tooth_circle );
 
