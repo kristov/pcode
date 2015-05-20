@@ -11,6 +11,12 @@ has 'app' => (
     documentation => 'Invalidate when things change',
 );
 
+has 'vbox' => (
+    is  => 'rw',
+    isa => 'Object',
+    documentation => 'Gtk2::VBox',
+);
+
 has 'widget' => (
     is  => 'rw',
     isa => 'Object',
@@ -19,15 +25,23 @@ has 'widget' => (
 
 sub BUILD {
     my ( $self ) = @_;
-    my $prop_box = Gtk2::VBox->new( FALSE, 0 );
-    $self->widget( $prop_box );
+    my $vbox = Gtk2::VBox->new( FALSE, 0 );
+    $self->vbox( $vbox );
+
+    my $sw = Gtk2::ScrolledWindow->new( undef, undef );
+    $sw->set_shadow_type( 'etched-out' );
+    $sw->set_policy( 'automatic', 'automatic' );
+
+    $sw->add_with_viewport( $vbox );
+
+    $self->widget( $sw );
 }
 
 sub show_props {
     my ( $self, $props ) = @_;
-    $self->widget->foreach( sub { $self->widget->remove( $_[0] ) } );
-    $self->widget->pack_start( $props->widget, FALSE, FALSE, 0 );
-    $self->widget->show_all;
+    $self->vbox->foreach( sub { $self->vbox->remove( $_[0] ) } );
+    $self->vbox->pack_start( $props->widget, FALSE, FALSE, 0 );
+    $self->vbox->show_all;
 }
 
 1;
