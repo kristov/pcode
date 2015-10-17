@@ -18,6 +18,20 @@ has 'tool_paths' => (
     documentation => 'List of tool paths',
 );
 
+has 'do_render_commands' => (
+    is  => 'rw',
+    isa => 'Bool',
+    default => 1,
+    documentation => 'Do we render the path?',
+);
+
+has 'do_render_tool_paths' => (
+    is  => 'rw',
+    isa => 'Bool',
+    default => 1,
+    documentation => 'Do we render the tool path?',
+);
+
 has name => (
     is  => 'rw',
     isa => 'Str',
@@ -77,6 +91,15 @@ sub properties {
             hook  => sub {
                 my ( $self ) = @_;
                 $self->regenerate_tool_paths,
+            },
+        },
+        {
+            name  => 'do_render_tool_paths',
+            label => 'Render tool path?',
+            type  => 'Bool',
+            hook  => sub {
+                my ( $self ) = @_;
+                #$self->redraw;
             },
         },
         {
@@ -389,8 +412,10 @@ sub line_to_arc {
 
 sub render {
     my ( $self, $app, $cr ) = @_;
-    $self->render_commands( $app, $cr );
-    $self->render_tool_paths( $app, $cr );
+    $self->render_commands( $app, $cr )
+        if $self->do_render_commands;
+    $self->render_tool_paths( $app, $cr )
+        if $self->do_render_tool_paths;
 }
 
 sub render_commands {
