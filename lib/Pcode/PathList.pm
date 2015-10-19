@@ -48,4 +48,27 @@ sub generate_gcode {
     return ( $full_gcode, $test_gcode );
 }
 
+sub bounding_points {
+    my ( $self ) = @_;
+
+    my $minx;
+    my $miny;
+    my $maxx;
+    my $maxy;
+
+    $self->foreach( sub {
+        my ( $path ) = @_;
+        my ( $pmin, $pmax ) = $path->bounding_points;
+        $minx = $pmin->X if !defined $minx || $pmin->X < $minx;
+        $miny = $pmin->Y if !defined $miny || $pmin->Y < $miny;
+        $maxx = $pmax->X if !defined $maxx || $pmax->X > $maxx;
+        $maxy = $pmax->Y if !defined $maxy || $pmax->Y > $maxy;
+    } );
+
+    return (
+        Pcode::Point->new( { X => $minx, Y => $miny } ),
+        Pcode::Point->new( { X => $maxx, Y => $maxy } ),
+    );
+}
+
 1;

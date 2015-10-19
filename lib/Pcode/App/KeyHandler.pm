@@ -21,6 +21,10 @@ has 'dispatch' => (
             my ( $self ) = @_;
             $self->app->delete_last_command;
         },
+        z => sub {
+            my ( $self ) = @_;
+            $self->app->fit_screen;
+        },
     } },
     documentation => 'Key press dispatch',
 );
@@ -41,6 +45,7 @@ sub handle {
         65288 => 'backspace',
         105   => 'i',
         109   => 'm',
+        122   => 'z',
     };
     my $keyname = $code2key->{$keyval};
 
@@ -51,7 +56,7 @@ sub handle {
         }
     }
     else {
-        #print "unknown key: $keyval\n";
+        print "unknown key: $keyval\n";
     }
 
     return;

@@ -91,4 +91,35 @@ sub recalculate_points {
     }
 }
 
+sub bounding_points {
+    my ( $self ) = @_;
+
+    my $minx;
+    my $miny;
+    my $maxx;
+    my $maxy;
+
+    $self->foreach( sub {
+        my ( $snap ) = @_;
+
+        my $start = $snap->start;
+        my $end = $snap->end;
+
+        $minx = $start->X if !defined $minx || $start->X < $minx;
+        $miny = $start->Y if !defined $miny || $start->Y < $miny;
+        $maxx = $start->X if !defined $maxx || $start->X > $maxx;
+        $maxy = $start->Y if !defined $maxy || $start->Y > $maxy;
+
+        $minx = $end->X if !defined $minx || $end->X < $minx;
+        $miny = $end->Y if !defined $miny || $end->Y < $miny;
+        $maxx = $end->X if !defined $maxx || $end->X > $maxx;
+        $maxy = $end->Y if !defined $maxy || $end->Y > $maxy;
+    } );
+
+    return (
+        Pcode::Point->new( { X => $minx, Y => $miny } ),
+        Pcode::Point->new( { X => $maxx, Y => $maxy } ),
+    );
+}
+
 1;

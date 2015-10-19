@@ -166,6 +166,11 @@ sub last_command {
     return $self->commands->last;
 }
 
+sub bounding_points {
+    my ( $self ) = @_;
+    return $self->commands->bounding_points;
+}
+
 sub regenerate_tool_paths {
     my ( $self ) = @_;
 

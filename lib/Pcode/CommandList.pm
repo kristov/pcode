@@ -8,12 +8,18 @@ use Gcode::Command::LineTo;
 use Gcode::Command::ArcOffset;
 
 with 'Pcode::Role::List';
+with 'Pcode::Role::Renderable';
 
 has invert_axis => (
     is  => 'rw',
     isa => 'Bool',
     default => 0,
 );
+
+after 'add' => sub {
+    my ( $self ) = @_;
+    $self->needs_render( 1 );
+};
 
 sub detect_point_snap {
     my ( $self, $app, $current_point, $res ) = @_;
@@ -75,6 +81,37 @@ sub stringify {
     } );
 
     return join( "\n", @commands );
+}
+
+sub bounding_points {
+    my ( $self ) = @_;
+
+    my $minx;
+    my $miny;
+    my $maxx;
+    my $maxy;
+
+    $self->foreach( sub {
+        my ( $command ) = @_;
+
+        my $start = $command->start;
+        my $end = $command->end;
+
+        $minx = $start->X if !defined $minx || $start->X < $minx;
+        $miny = $start->Y if !defined $miny || $start->Y < $miny;
+        $maxx = $start->X if !defined $maxx || $start->X > $maxx;
+        $maxy = $start->Y if !defined $maxy || $start->Y > $maxy;
+
+        $minx = $end->X if !defined $minx || $end->X < $minx;
+        $miny = $end->Y if !defined $miny || $end->Y < $miny;
+        $maxx = $end->X if !defined $maxx || $end->X > $maxx;
+        $maxy = $end->Y if !defined $maxy || $end->Y > $maxy;
+    } );
+
+    return (
+        Pcode::Point->new( { X => $minx, Y => $miny } ),
+        Pcode::Point->new( { X => $maxx, Y => $maxy } ),
+    );
 }
 
 sub generate_gcode {

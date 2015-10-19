@@ -680,6 +680,22 @@ sub do_cairo_drawing {
     my $cr = Cairo::Context->create( $surface );
     my $mode = $self->mode;
 
+    if ( $self->path_center ) {
+        $self->render_crosshair( $cr, $self->path_center, [ 0, 1, 0 ] );
+    }
+
+    if ( $self->machine_center ) {
+        $self->render_crosshair( $cr, $self->machine_center, [ 0, 1, 1 ] );
+    }
+
+    if ( $self->snaps ) {
+        $self->snaps->render( $self, $cr );
+    }
+
+    if ( $self->current_path ) {
+        $self->current_path->render( $self, $cr );
+    }
+
     if ( $self->start_point ) {
         
         my $x = $self->mouse_x;
@@ -697,23 +713,6 @@ sub do_cairo_drawing {
         if ( $command ) {
             $command->render( $self, $cr );
         }
-
-    }
-
-    if ( $self->path_center ) {
-        $self->render_crosshair( $cr, $self->path_center, [ 0, 1, 0 ] );
-    }
-
-    if ( $self->machine_center ) {
-        $self->render_crosshair( $cr, $self->machine_center, [ 0, 1, 1 ] );
-    }
-
-    if ( $self->snaps ) {
-        $self->snaps->render( $self, $cr );
-    }
-
-    if ( $self->current_path ) {
-        $self->current_path->render( $self, $cr );
     }
 }
 
@@ -790,6 +789,35 @@ sub zoom_out {
     $zoom = $zoom - 0.1;
     $self->zoom( $zoom );
     $self->state_change;
+}
+
+sub fit_screen {
+    my ( $self ) = @_;
+
+    my ( $smin, $smax ) = $self->snaps->bounding_points;
+    my ( $pmin, $pmax ) = $self->paths->bounding_points;
+
+    my $minx;
+    my $miny;
+    my $maxx;
+    my $maxy;
+
+    if ( $smin ) {
+        $minx = $smin->X if !defined $minx || $smin->X < $minx;
+        $miny = $smin->Y if !defined $miny || $smin->Y < $miny;
+    }
+    if ( $pmin ) {
+        $minx = $pmin->X if !defined $minx || $pmin->X < $minx;
+        $miny = $pmin->Y if !defined $miny || $pmin->Y < $miny;
+    }
+    if ( $smax ) {
+        $maxx = $smax->X if !defined $maxx || $smax->X < $maxx;
+        $maxy = $smax->Y if !defined $maxy || $smax->Y < $maxy;
+    }
+    if ( $pmax ) {
+        $maxx = $smax->X if !defined $maxx || $smax->X < $maxx;
+        $maxy = $smax->Y if !defined $maxy || $smax->Y < $maxy;
+    }
 }
 
 sub scale_to_screen {
