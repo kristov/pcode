@@ -25,6 +25,7 @@ use Pcode::App::CodeWindow;
 use Pcode::App::PropContainer;
 use Pcode::App::GcodeWindow;
 use Pcode::App::TopMenu;
+use Pcode::Util::Coord;
 
 use Module::Pluggable search_path => [ 'Pcode::Recipe' ], require => 1;
 
@@ -84,27 +85,6 @@ has 'da_height' => (
     isa => 'Int',
     default => 0,
     documentation => "Drawing Area height",
-);
-
-has 'x_offset' => (
-    is  => 'rw',
-    isa => 'Int',
-    default => 10,
-    documentation => "Viewing window offset X",
-);
-
-has 'y_offset' => (
-    is  => 'rw',
-    isa => 'Int',
-    default => 10,
-    documentation => "Viewing window offset Y",
-);
-
-has 'zoom' => (
-    is  => 'rw',
-    isa => 'Num',
-    default => 18,
-    documentation => "Viewing window zoom",
 );
 
 has 'draw_line' => (
@@ -222,12 +202,25 @@ has 'machine_center' => (
     documentation => "The location of the machine center",
 );
 
+has 'coord' => (
+    is  => 'ro',
+    isa => 'Pcode::Util::Coord',
+    lazy => 1,
+    builder => '_build_coord',
+    documentation => 'Coordinate calculator',
+);
+
 has 'install_dir' => (
     is  => 'ro',
     isa => 'Str',
     required => 1,
     documentation => "Where to find this code",
 );
+
+sub _build_coord {
+    my ( $self ) = @_;
+    return Pcode::Util::Coord->new();
+}
 
 sub BUILD {
     my ( $self ) = @_;
@@ -323,6 +316,14 @@ sub load_file {
         my $current_path = $self->paths->new_path;
         $self->current_path( $current_path );
     }
+
+    if ( !$self->current_path ) {
+        if ( $self->paths->nr_paths > 0 ) {
+            my $path = $self->paths->first;
+            $path->needs_render( 1 );
+            $self->current_path( $path );
+        }
+    }
 }
 
 sub new_empty_path {
@@ -340,6 +341,9 @@ sub cancel_action {
     if ( $self->start_point ) {
         $self->start_point( undef );
         $self->invalidate;
+    }
+    if ( $self->mode eq 'zin' ) {
+        $self->mode( '' );
     }
 }
 
@@ -400,6 +404,12 @@ sub motion_notify {
         $self->mouse_y( $y );
         $self->invalidate;
     }
+
+    if ( $self->mode eq 'zin' ) {
+        $self->mouse_x( $x );
+        $self->mouse_y( $y );
+        $self->invalidate;
+    }
 }
 
 sub state_change {
@@ -423,6 +433,9 @@ sub invalidate {
 sub button_clicked {
     my ( $self, $widget, $event ) = @_;
     my ( $x, $y, $button ) = ( $event->x, $event->y, $event->button );
+
+    $self->mouse_x( $x );
+    $self->mouse_y( $y );
 
     my ( $point ) = $self->translate_from_screen_coords( Pcode::Point->new( { X => $x, Y => $y } ) );
 
@@ -457,11 +470,15 @@ sub left_button_clicked {
     elsif ( $mode eq 'pce' ) {
         $self->pce_mode_click( $point, $snap_point );
     }
+    elsif ( $mode eq 'zin' ) {
+        $self->zin_mode_click( $point, $snap_point );
+    }
+    elsif ( $mode eq 'zot' ) {
+        $self->zot_mode_click( $point, $snap_point );
+    }
     elsif ( $mode ) {
         $self->plugin_click( $mode, $point, $snap_point );
     }
-
-    #$self->draw_line( 0 );
 
     return TRUE;
 }
@@ -565,6 +582,41 @@ sub pce_mode_click {
 
     $self->translate_everything( $diff_x, $diff_y );
 
+    $self->state_change;
+}
+
+sub zin_mode_click {
+    my ( $self, $point, $snap_point ) = @_;
+
+    my $height = $self->da_height;
+    my ( $screen ) = $self->translate_to_screen_coords( $point );
+    my $screen_y = $screen->Y;
+    $screen->Y( $height - $screen_y );
+
+    my $hw = $self->da_width / 4;
+    my $hh = $self->da_height / 4;
+
+    my $x = $screen->X - $hw;
+    my $y = $screen->Y - $hh;
+
+    my ( $x_offset, $y_offset ) = $self->scale_to_screen( $self->coord->x_offset, $self->coord->y_offset );
+    $x = $x + $x_offset;
+    $y = $y + $y_offset;
+
+    ( $x, $y ) = $self->scale_from_screen( $x, $y );
+    $self->coord->x_offset( $x );
+    $self->coord->y_offset( $y );
+
+    $self->coord->zoom_in;
+
+    $self->current_path->needs_render( 1 );
+    $self->state_change;
+}
+
+sub zot_mode_click {
+    my ( $self, $point, $snap_point ) = @_;
+    $self->coord->zoom_out;
+    $self->current_path->needs_render( 1 );
     $self->state_change;
 }
 
@@ -714,6 +766,12 @@ sub do_cairo_drawing {
             $command->render( $self, $cr );
         }
     }
+
+    if ( $self->mode eq 'zin' ) {
+        my $x = $self->mouse_x;
+        my $y = $self->mouse_y;
+        $self->draw_zoom_box( $cr, $x, $y );
+    }
 }
 
 sub render_crosshair {
@@ -745,6 +803,39 @@ sub render_crosshair {
     $cr->restore;
 }
 
+sub draw_zoom_box {
+    my ( $self, $cr, $x, $y ) = @_;
+    my $width = $self->da_width / 2;
+    my $height = $self->da_height / 2;
+    $self->draw_box( $cr, $x, $y, $width, $height );
+}
+
+sub draw_box {
+    my ( $self, $cr, $x, $y, $width, $height ) = @_;
+    $cr->save;
+
+    my $hw = int( $width / 2 );
+    my $hh = int( $height / 2 );
+
+    my $x1 = $x - $hw;
+    my $x2 = $x + $hw;
+
+    my $y1 = $y - $hh;
+    my $y2 = $y + $hh;
+
+    $cr->set_line_width( 1 );
+    $cr->set_source_rgb( 0, 0.5, 0.5 );
+
+    $cr->move_to( $x1, $y1 );
+    $cr->line_to( $x2, $y1 );
+    $cr->line_to( $x2, $y2 );
+    $cr->line_to( $x1, $y2 );
+    $cr->line_to( $x1, $y1 );
+    $cr->stroke();
+
+    $cr->restore;
+}
+
 sub temporary_line {
     my ( $self, $start, $end ) = @_;
     return Pcode::Command::Line->new( { start => $start, end => $end } );
@@ -760,8 +851,7 @@ sub temporary_arc {
 sub detect_point_snap {
     my ( $self, $current_point ) = @_;
 
-    my $zoom = $self->zoom;
-    my $res = 0.2;
+    my $res = 0.8;
 
     my $point = $self->current_path->detect_point_snap( $self, $current_point, $res );
     if ( !$point ) {
@@ -775,20 +865,36 @@ sub detect_line_snap {
     return $self->current_path->detect_line_snap( $self, $point );
 }
 
-sub zoom_in {
-    my ( $self ) = @_;
-    my $zoom = $self->zoom;
-    $zoom = $zoom + 0.1;
-    $self->zoom( $zoom );
-    $self->state_change;
+sub zoom {
+    my ( $self, $zoom ) = @_;
+    if ( defined $zoom ) {
+        $self->coord->zoom( $zoom );
+    }
+    return $self->coord->zoom;
+}
+
+sub x_offset {
+    my ( $self, $x_offset ) = @_;
+    if ( defined $x_offset ) {
+        $self->coord->x_offset( $x_offset );
+    }
+    return $self->coord->x_offset;
+}
+
+sub y_offset {
+    my ( $self, $y_offset ) = @_;
+    if ( defined $y_offset ) {
+        $self->coord->y_offset( $y_offset );
+    }
+    return $self->coord->y_offset;
 }
 
 sub zoom_out {
     my ( $self ) = @_;
-    my $zoom = $self->zoom;
-    $zoom = $zoom - 0.1;
-    $self->zoom( $zoom );
-    $self->state_change;
+    #my $zoom = $self->zoom;
+    #$zoom = $zoom - 0.5;
+    #$self->zoom( $zoom );
+    #$self->state_change;
 }
 
 sub fit_screen {
@@ -804,6 +910,7 @@ sub fit_screen {
 
     if ( $smin ) {
         $minx = $smin->X if !defined $minx || $smin->X < $minx;
+        
         $miny = $smin->Y if !defined $miny || $smin->Y < $miny;
     }
     if ( $pmin ) {
@@ -818,54 +925,6 @@ sub fit_screen {
         $maxx = $smax->X if !defined $maxx || $smax->X < $maxx;
         $maxy = $smax->Y if !defined $maxy || $smax->Y < $maxy;
     }
-}
-
-sub scale_to_screen {
-    my ( $self, @numbers ) = @_;
-    my $zoom = $self->zoom;
-    @numbers = map { $_ * $zoom } @numbers;
-    return @numbers;
-}
-
-sub scale_from_screen {
-    my ( $self, @numbers ) = @_;
-    my $zoom = $self->zoom;
-    @numbers = map { $_ / $zoom } @numbers;
-    return @numbers;
-}
-
-sub translate_to_screen_coords {
-    my ( $self, @points ) = @_;
-
-    my @new_points;
-    my $da_height = $self->da_height;
-
-    for my $point ( @points ) {
-        my ( $x, $y ) = ( $point->X, $point->Y );
-        $x = $x + $self->x_offset;
-        $y = $y + $self->y_offset;
-        ( $x, $y ) = $self->scale_to_screen( $x, $y );
-        $y = $da_height - $y;
-        push @new_points, Pcode::Point->new( { X => $x, Y => $y } );
-    }
-    return @new_points;
-}
-
-sub translate_from_screen_coords {
-    my ( $self, @points ) = @_;
-    
-    my @new_points;
-    my $da_height = $self->da_height;
-
-    for my $point ( @points ) {
-        my ( $x, $y ) = ( $point->X, $point->Y );
-        $y = $da_height - $y;
-        ( $x, $y ) = $self->scale_from_screen( $x, $y );
-        $x = $x - $self->x_offset;
-        $y = $y - $self->y_offset;
-        push @new_points, Pcode::Point->new( { X => $x, Y => $y } );
-    }
-    return @new_points;
 }
 
 sub render {
@@ -885,6 +944,26 @@ sub render {
     $cr->set_source_surface( $self->surface(), 0, 0 );
     $cr->paint;
     return FALSE;
+}
+
+sub scale_to_screen {
+    my ( $self, @numbers ) = @_;
+    return $self->coord->scale_to_screen( @numbers );
+}
+
+sub scale_from_screen {
+    my ( $self, @numbers ) = @_;
+    return $self->coord->scale_from_screen( @numbers );
+}
+
+sub translate_to_screen_coords {
+    my ( $self, @points ) = @_;
+    return $self->coord->translate_to_screen_coords( $self->da_height, @points );
+}
+
+sub translate_from_screen_coords {
+    my ( $self, @points ) = @_;
+    return $self->coord->translate_from_screen_coords( $self->da_height, @points );
 }
 
 sub generate_gcode {

@@ -8,18 +8,12 @@ use Gcode::Command::LineTo;
 use Gcode::Command::ArcOffset;
 
 with 'Pcode::Role::List';
-with 'Pcode::Role::Renderable';
 
 has invert_axis => (
     is  => 'rw',
     isa => 'Bool',
     default => 0,
 );
-
-after 'add' => sub {
-    my ( $self ) = @_;
-    $self->needs_render( 1 );
-};
 
 sub detect_point_snap {
     my ( $self, $app, $current_point, $res ) = @_;

@@ -4,6 +4,8 @@ use Moose;
 use Pcode::PointList;
 use Pcode::CommandList;
 
+with 'Pcode::Role::Layer';
+
 has 'commands' => (
     is  => 'rw',
     isa => 'Pcode::CommandList',
@@ -81,7 +83,16 @@ sub properties {
             type  => 'Num',
             hook  => sub {
                 my ( $self ) = @_;
-                $self->regenerate_tool_paths,
+                $self->regenerate_tool_paths;
+                $self->needs_render( 1 );
+            },
+        },
+        {
+            name  => 'needs_render',
+            label => 'Needs render',
+            type  => 'Bool',
+            hook  => sub {
+                my ( $self ) = @_;
             },
         },
         {
@@ -90,7 +101,8 @@ sub properties {
             type  => 'Bool',
             hook  => sub {
                 my ( $self ) = @_;
-                $self->regenerate_tool_paths,
+                $self->regenerate_tool_paths;
+                $self->needs_render( 1 );
             },
         },
         {
@@ -99,7 +111,7 @@ sub properties {
             type  => 'Bool',
             hook  => sub {
                 my ( $self ) = @_;
-                #$self->redraw;
+                $self->needs_render( 1 );
             },
         },
         {
@@ -129,6 +141,7 @@ sub clear {
     my ( $self ) = @_;
     $self->commands->clear;
     $self->tool_paths->clear;
+    $self->needs_render( 1 );
 }
 
 sub select {
@@ -138,6 +151,7 @@ sub select {
         $command->hover( 0 );
     } );
     $selected_command->hover( 1 );
+    $self->needs_render( 1 );
 }
 
 sub nr_commands {
@@ -149,6 +163,7 @@ sub delete_last {
     my ( $self ) = @_;
     $self->commands->pop;
     $self->regenerate_tool_paths;
+    $self->needs_render( 1 );
 }
 
 sub stringify {
@@ -159,6 +174,7 @@ sub stringify {
 sub append_command {
     my ( $self, $command ) = @_;
     $self->commands->append( $command );
+    $self->needs_render( 1 );
 }
 
 sub last_command {
@@ -415,7 +431,7 @@ sub line_to_arc {
     return @paths;
 }
 
-sub render {
+sub render_layer {
     my ( $self, $app, $cr ) = @_;
     $self->render_commands( $app, $cr )
         if $self->do_render_commands;
