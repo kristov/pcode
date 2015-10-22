@@ -588,24 +588,21 @@ sub pce_mode_click {
 sub zin_mode_click {
     my ( $self, $point, $snap_point ) = @_;
 
-    my $height = $self->da_height;
-    my ( $screen ) = $self->translate_to_screen_coords( $point );
-    my $screen_y = $screen->Y;
-    $screen->Y( $height - $screen_y );
+    my $x = $self->mouse_x;
+    my $y = $self->mouse_y;
+    $y = $self->da_height - $y;
 
-    my $hw = $self->da_width / 4;
-    my $hh = $self->da_height / 4;
+    my $hw = $self->da_width / 2;
+    my $hh = $self->da_height / 2;
 
-    my $x = $screen->X - $hw;
-    my $y = $screen->Y - $hh;
+    my $lcx = $x - $hw;
+    my $lcy = $y - $hh;
 
-    my ( $x_offset, $y_offset ) = $self->scale_to_screen( $self->coord->x_offset, $self->coord->y_offset );
-    $x = $x + $x_offset;
-    $y = $y + $y_offset;
-
-    ( $x, $y ) = $self->scale_from_screen( $x, $y );
-    $self->coord->x_offset( $x );
-    $self->coord->y_offset( $y );
+    ( $lcx, $lcy ) = $self->scale_from_screen( $lcx, $lcy );
+    my $x_offset = $self->x_offset;
+    my $y_offset = $self->y_offset;
+    $self->x_offset( $x_offset + $lcx );
+    $self->y_offset( $y_offset + $lcy );
 
     $self->coord->zoom_in;
 
@@ -615,7 +612,25 @@ sub zin_mode_click {
 
 sub zot_mode_click {
     my ( $self, $point, $snap_point ) = @_;
+    
+    my $x = $self->mouse_x;
+    my $y = $self->mouse_y;
+    $y = $self->da_height - $y;
+
+    my $hw = $self->da_width / 2;
+    my $hh = $self->da_height / 2;
+
+    my $lcx = $x - $hw;
+    my $lcy = $y - $hh;
+
+    ( $lcx, $lcy ) = $self->scale_from_screen( $lcx, $lcy );
+    my $x_offset = $self->x_offset;
+    my $y_offset = $self->y_offset;
+    $self->x_offset( $x_offset + $lcx );
+    $self->y_offset( $y_offset + $lcy );
+
     $self->coord->zoom_out;
+
     $self->current_path->needs_render( 1 );
     $self->state_change;
 }
