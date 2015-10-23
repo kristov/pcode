@@ -552,17 +552,24 @@ sub arc_mode_click {
 sub mov_mode_click {
     my ( $self, $point, $snap_point ) = @_;
 
-    my ( $screen ) = $self->translate_to_screen_coords( $point );
-    my ( $dw, $dh ) = ( $self->da_width, $self->da_height );
+    my $x = $self->mouse_x;
+    my $y = $self->mouse_y;
+    $y = $self->da_height - $y;
 
-    my $x = $screen->X;
-    my $y = $dh - $screen->Y;
-    ( $x, $y ) = $self->scale_from_screen( $x, $y );
+    my $hw = $self->da_width / 2;
+    my $hh = $self->da_height / 2;
 
-    $self->x_offset( int( $x ) );
-    $self->y_offset( int( $y ) );
+    my $lcx = $x - $hw;
+    my $lcy = $y - $hh;
 
-    $self->invalidate;
+    ( $lcx, $lcy ) = $self->scale_from_screen( $lcx, $lcy );
+    my $x_offset = $self->x_offset;
+    my $y_offset = $self->y_offset;
+    $self->x_offset( $x_offset + $lcx );
+    $self->y_offset( $y_offset + $lcy );
+
+    $self->current_path->needs_render( 1 );
+    $self->state_change;
 }
 
 sub mce_mode_click {
