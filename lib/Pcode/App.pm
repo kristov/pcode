@@ -598,13 +598,13 @@ sub zin_mode_click {
     my $lcx = $x - $hw;
     my $lcy = $y - $hh;
 
+    $self->coord->zoom_in;
+
     ( $lcx, $lcy ) = $self->scale_from_screen( $lcx, $lcy );
     my $x_offset = $self->x_offset;
     my $y_offset = $self->y_offset;
     $self->x_offset( $x_offset + $lcx );
     $self->y_offset( $y_offset + $lcy );
-
-    $self->coord->zoom_in;
 
     $self->current_path->needs_render( 1 );
     $self->state_change;
@@ -623,13 +623,13 @@ sub zot_mode_click {
     my $lcx = $x - $hw;
     my $lcy = $y - $hh;
 
+    $self->coord->zoom_out;
+
     ( $lcx, $lcy ) = $self->scale_from_screen( $lcx, $lcy );
     my $x_offset = $self->x_offset;
     my $y_offset = $self->y_offset;
     $self->x_offset( $x_offset + $lcx );
     $self->y_offset( $y_offset + $lcy );
-
-    $self->coord->zoom_out;
 
     $self->current_path->needs_render( 1 );
     $self->state_change;
