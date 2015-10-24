@@ -28,6 +28,7 @@ sub BUILD {
         [ "Move window",        'mov',  sub { $self->app->mode( 'mov' ) } ],
         [ "Zoom in",            'zin',  sub { $self->app->mode( 'zin' ) } ],
         [ "Zoom out",           'zot',  sub { $self->app->mode( 'zot' ) } ],
+        [ "Zoom fit",           'zit',  sub { $self->app->zoom_to_fit } ],
         [ "Generate G-CODE",    'gcd',  sub { $self->app->generate_gcode } ],
         [ "Delete all paths",   'clr',  sub { $self->app->clear_all } ],
         [ "Save",               'sav',  sub { $self->save } ],

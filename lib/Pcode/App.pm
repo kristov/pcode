@@ -911,15 +911,7 @@ sub y_offset {
     return $self->coord->y_offset;
 }
 
-sub zoom_out {
-    my ( $self ) = @_;
-    #my $zoom = $self->zoom;
-    #$zoom = $zoom - 0.5;
-    #$self->zoom( $zoom );
-    #$self->state_change;
-}
-
-sub fit_screen {
+sub zoom_to_fit {
     my ( $self ) = @_;
 
     my ( $smin, $smax ) = $self->snaps->bounding_points;
@@ -932,7 +924,6 @@ sub fit_screen {
 
     if ( $smin ) {
         $minx = $smin->X if !defined $minx || $smin->X < $minx;
-        
         $miny = $smin->Y if !defined $miny || $smin->Y < $miny;
     }
     if ( $pmin ) {
@@ -940,13 +931,27 @@ sub fit_screen {
         $miny = $pmin->Y if !defined $miny || $pmin->Y < $miny;
     }
     if ( $smax ) {
-        $maxx = $smax->X if !defined $maxx || $smax->X < $maxx;
-        $maxy = $smax->Y if !defined $maxy || $smax->Y < $maxy;
+        $maxx = $smax->X if !defined $maxx || $smax->X > $maxx;
+        $maxy = $smax->Y if !defined $maxy || $smax->Y > $maxy;
     }
     if ( $pmax ) {
-        $maxx = $smax->X if !defined $maxx || $smax->X < $maxx;
-        $maxy = $smax->Y if !defined $maxy || $smax->Y < $maxy;
+        $maxx = $pmax->X if !defined $maxx || $pmax->X > $maxx;
+        $maxy = $pmax->Y if !defined $maxy || $pmax->Y > $maxy;
     }
+
+    my ( $w, $h ) = ( $self->da_width, $self->da_height );
+    my $dx = $maxx - $minx;
+    my $dy = $maxy - $miny;
+    my $dmax = $w > $h ? $dx : $dy;
+    my $amax = $w > $h ? $w : $h;
+
+    my $zoom = int( $amax / $dmax );
+    $self->x_offset( $minx );
+    $self->y_offset( $miny );
+    $self->zoom( $zoom );
+
+    $self->current_path->needs_render( 1 );
+    $self->state_change;
 }
 
 sub render {
