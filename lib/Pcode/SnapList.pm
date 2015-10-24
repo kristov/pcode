@@ -99,6 +99,8 @@ sub bounding_points {
     my $maxx;
     my $maxy;
 
+    return if !$self->count;
+
     $self->foreach( sub {
         my ( $snap ) = @_;
 

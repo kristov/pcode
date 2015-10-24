@@ -69,6 +69,10 @@ sub save {
         $self->serialize_paths( $document );
     }
 
+    if ( $self->app->drill_path ) {
+        $self->serialize_drill_path( $document );
+    }
+
     my $string = $self->json->encode( $document );
 
     $self->file->write_file(
@@ -100,6 +104,11 @@ sub serialize_paths {
         my ( $path ) = @_;
         push @{ $object }, $path->serialize;
     } );
+}
+
+sub serialize_drill_path {
+    my ( $self, $document ) = @_;
+    $document->{drill_path} = $self->app->drill_path->serialize;
 }
 
 sub working_file_exists {
@@ -139,6 +148,10 @@ sub load {
     if ( $document->{paths} ) {
         $self->deserialize_paths( $document->{paths} );
     }
+
+    if ( $document->{drill_path} ) {
+        $self->deserialize_drill_path( $document->{drill_path} );
+    }
 }
 
 sub deserialize_snaps {
@@ -154,6 +167,30 @@ sub deserialize_snaps {
         }
     }
     $self->app->snaps->recalculate_points;
+}
+
+sub deserialize_drill_path {
+    my ( $self, $path ) = @_;
+
+    my @properties = qw(
+        name
+        depth
+        overcut
+    );
+
+    my $path_object = Pcode::DrillPath->new();
+
+    for my $prop ( @properties ) {
+        $path_object->$prop( $path->{$prop} ) if $path->{$prop};
+    }
+
+    for my $command ( @{ $path->{commands} } ) {
+        my ( $name, $args ) = @{ $command };
+        my $object = $self->app->create_object( 'command', $name, $args );
+        $path_object->append_command( $object );
+    }
+
+    $self->app->drill_path( $path_object );
 }
 
 sub deserialize_paths {

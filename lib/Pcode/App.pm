@@ -8,10 +8,12 @@ use Glib qw( TRUE FALSE );
 
 use Pcode::Point;
 use Pcode::Path;
+use Pcode::DrillPath;
 use Pcode::PathList;
 use Pcode::SnapList;
 use Pcode::Command::Line;
 use Pcode::Command::Arc;
+use Pcode::Command::Drill;
 use Pcode::Snap::Circle;
 use Pcode::Snap::Line;
 use Pcode::Snap::Point;
@@ -143,6 +145,13 @@ has 'current_path' => (
     is  => 'rw',
     isa => 'Pcode::Path',
     documentation => "Working path",
+);
+
+has 'drill_path' => (
+    is  => 'rw',
+    isa => 'Pcode::DrillPath',
+    default => sub { Pcode::DrillPath->new(); },
+    documentation => "Drill path",
 );
 
 has 'paths' => (
@@ -327,13 +336,14 @@ sub load_file {
 }
 
 sub new_empty_path {
-    my ( $self ) = @_;
+    my ( $self, $name ) = @_;
     return $self->current_path if $self->current_path->nr_commands == 0;
     
-    my $current_path = $self->paths->new_path;
-    $self->current_path( $current_path );
+    my $new_path = $self->paths->new_path;
+    $self->name_path( $new_path, $name );
+    $self->current_path( $new_path );
 
-    return $current_path;
+    return $new_path;
 }
 
 sub cancel_action {
@@ -476,6 +486,9 @@ sub left_button_clicked {
     elsif ( $mode eq 'zot' ) {
         $self->zot_mode_click( $point, $snap_point );
     }
+    elsif ( $mode eq 'drl' ) {
+        $self->drl_mode_click( $point, $snap_point );
+    }
     elsif ( $mode ) {
         $self->plugin_click( $mode, $point, $snap_point );
     }
@@ -569,6 +582,7 @@ sub mov_mode_click {
     $self->y_offset( $y_offset + $lcy );
 
     $self->current_path->needs_render( 1 );
+    $self->drill_path->needs_render( 1 );
     $self->state_change;
 }
 
@@ -614,6 +628,7 @@ sub zin_mode_click {
     $self->y_offset( $y_offset + $lcy );
 
     $self->current_path->needs_render( 1 );
+    $self->drill_path->needs_render( 1 );
     $self->state_change;
 }
 
@@ -639,6 +654,17 @@ sub zot_mode_click {
     $self->y_offset( $y_offset + $lcy );
 
     $self->current_path->needs_render( 1 );
+    $self->drill_path->needs_render( 1 );
+    $self->state_change;
+}
+
+sub drl_mode_click {
+    my ( $self, $point, $snap_point ) = @_;
+    $point = $snap_point if $snap_point;
+    $self->drill_path->append_command( Pcode::Command::Drill->new(
+        X => $point->X,
+        Y => $point->Y,
+    ) );
     $self->state_change;
 }
 
@@ -720,7 +746,10 @@ sub finish_editing_path {
 }
 
 sub name_path {
-    my ( $self, $new_path ) = @_;
+    my ( $self, $new_path, $name ) = @_;
+    if ( $name ) {
+        return $new_path->name( $name );
+    }
     my @numbers;
     $self->paths->foreach( sub {
         my ( $path ) = @_;
@@ -768,6 +797,10 @@ sub do_cairo_drawing {
 
     if ( $self->current_path ) {
         $self->current_path->render( $self, $cr );
+    }
+
+    if ( $self->drill_path ) {
+        $self->drill_path->render( $self, $cr );
     }
 
     if ( $self->start_point ) {

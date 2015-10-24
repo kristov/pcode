@@ -22,6 +22,7 @@ sub BUILD {
     my $buttons = [
         [ "Draw line",          'line', sub { $self->app->mode( 'line' ) } ],
         [ "Draw arc",           'arc',  sub { $self->app->mode( 'arc' ) } ],
+        [ "Drill",              'drl',  sub { $self->app->mode( 'drl' ) } ],
         [ "Parse code window",  'prs',  sub { $self->app->code_window->parse_code } ],
         [ "Set machine center", 'mce',  sub { $self->app->mode( 'mce' ) } ],
         [ "Set path center",    'pce',  sub { $self->app->mode( 'pce' ) } ],
