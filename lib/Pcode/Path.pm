@@ -496,6 +496,7 @@ sub generate_gcode {
         },
         depth   => $self->depth,
         overcut => $self->overcut,
+        name    => $self->name,
     } );
 }
 

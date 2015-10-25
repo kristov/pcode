@@ -85,6 +85,8 @@ sub bounding_points {
     my $maxx;
     my $maxy;
 
+    return if $self->count == 0;
+
     $self->foreach( sub {
         my ( $command ) = @_;
 
@@ -119,6 +121,9 @@ sub generate_gcode {
 
     my $gcode_path = Gcode::Path->new();
     my $first_command = $self->first;
+
+    $gcode_path->name( $args->{name} )
+        if $args->{name};
 
     return if !$first_command;
 

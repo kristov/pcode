@@ -54,6 +54,9 @@ sub generate {
 
     my $last_cut_depth = $remainder + $self->overcut;
 
+    $self->comment( "BEGIN " . $self->path->name )
+        if $self->path->name;
+
     $self->set_absolute;
     $self->raise_above_work;
 
@@ -87,6 +90,9 @@ sub generate {
         my ( $command ) = @_;
         $self->_add( $command->gcode );
     } );
+
+    $self->comment( "END " . $self->path->name )
+        if $self->path->name;
 
     $self->raise_above_work;
     $self->move_to( 0, 0 );
@@ -139,6 +145,11 @@ sub cut_down_to {
 sub move_to {
     my ( $self, $x, $y ) = @_;
     $self->_add( "G0 X%0.2f Y%0.2f", $x, $y );
+}
+
+sub comment {
+    my ( $self, $comment ) = @_;
+    $self->_add( "; %s", $comment );
 }
 
 sub _add {

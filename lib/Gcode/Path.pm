@@ -9,6 +9,12 @@ has path => (
     documentation => 'The commands making up a path',
 );
 
+has name => (
+    is  => 'rw',
+    isa => 'Str',
+    documentation => 'The path name',
+);
+
 has start_X => (
     is  => 'rw',
     isa => 'Num',
