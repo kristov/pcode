@@ -37,6 +37,13 @@ has path => (
     documentation => 'The commands making up a path',
 );
 
+has drill_path => (
+    is  => 'rw',
+    isa => 'Gcode::Path',
+    required => 0,
+    documentation => 'Drilling operations',
+);
+
 has gcode => (
     is  => 'rw',
     isa => 'ArrayRef',
@@ -48,6 +55,8 @@ sub generate {
     my ( $self ) = @_;
 
     $self->gcode( [] );
+
+    $self->generate_drill;
 
     my $nr_full_cuts = int( $self->work_thickness / $self->cut_depth );
     my $remainder = $self->work_thickness - ( $nr_full_cuts * $self->cut_depth );
@@ -101,10 +110,30 @@ sub generate {
     return join( "\n", @{ $self->gcode } );
 }
 
+sub generate_drill {
+    my ( $self ) = @_;
+
+    return if !$self->drill_path;
+
+    $self->set_absolute;
+    $self->raise_above_work;
+
+    $self->drill_path->foreach( sub {
+        my ( $command ) = @_;
+        $self->move_to( $self->X, $self->Y );
+        $self->_add( $command->gcode );
+        $self->raise_above_work;
+    } );
+
+    $self->move_to( $self->path->start_X, $self->path->start_Y );
+}
+
 sub generate_test {
     my ( $self ) = @_;
 
     $self->gcode( [] );
+
+    $self->generate_drill_test;
 
     $self->set_absolute;
     $self->raise_above_work;
@@ -120,6 +149,24 @@ sub generate_test {
     $self->move_down_to( 0 );
 
     return join( "\n", @{ $self->gcode } );
+}
+
+sub generate_drill_test {
+    my ( $self ) = @_;
+
+    return if !$self->drill_path;
+
+    $self->set_absolute;
+    $self->raise_above_work;
+
+    $self->drill_path->foreach( sub {
+        my ( $command ) = @_;
+        $self->move_to( $command->X, $command->Y );
+        $self->_add( "G1 Z1 F200" );
+        $self->raise_above_work;
+    } );
+
+    $self->move_to( $self->path->start_X, $self->path->start_Y );
 }
 
 sub set_absolute {
