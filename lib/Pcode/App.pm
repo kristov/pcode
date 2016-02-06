@@ -263,6 +263,8 @@ sub build_gui {
 
     my $object_tree = Pcode::App::ObjectTree->new( { app => $self } );
     $self->object_tree( $object_tree );
+    
+    $object_tree->widget->signal_connect( 'key-press-event' => sub { $self->keyhandler->handle( 'OT', @_ ) } );
 
     my $prop_box = Pcode::App::PropContainer->new( { app => $self } );
     $self->prop_box( $prop_box );
@@ -296,7 +298,7 @@ sub build_gui {
 
     $self->da->signal_connect( 'button-press-event' => sub { return $self->button_clicked( @_ ) } );
     $self->da->signal_connect( 'motion-notify-event' => sub { $self->motion_notify( @_ ) } );
-    $self->da->signal_connect( 'key-press-event' => sub { $self->keyhandler->handle( @_ ) } );
+    $self->da->signal_connect( 'key-press-event' => sub { $self->keyhandler->handle( 'DA', @_ ) } );
     $self->da->can_focus( TRUE );
     $self->da->grab_focus;
 
@@ -367,6 +369,22 @@ sub delete_last_command {
             $self->current_path( $prev_path );
         }
     }
+    $self->state_change;
+}
+
+sub delete_current_path {
+    my ( $self ) = @_;
+
+    my $current_path = $self->current_path;
+    return unless $current_path;
+
+    my $prev_path = $self->paths->delete_path( $current_path );
+
+    if ( $prev_path ) {
+        $self->current_path( $prev_path );
+        $self->current_path->needs_render( 1 );
+    }
+
     $self->state_change;
 }
 

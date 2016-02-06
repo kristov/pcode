@@ -54,6 +54,30 @@ sub pop {
     $self->list( $list );
 }
 
+sub delete_this {
+    my ( $self, $thing ) = @_;
+
+    my $list = $self->list;
+    return unless @{ $list };
+
+    my $addr = "$thing";
+    my $idx = 0;
+
+    for my $item ( @{ $list } ) {
+        my $taddr = "$item";
+        last if $taddr eq $addr;
+        $idx++;
+    }
+
+    splice( @{ $list }, $idx, 1 );
+
+    $idx--;
+
+    if ( $idx >= 0 ) {
+        return $list->[$idx];
+    }
+}
+
 sub foreach {
     my ( $self, $code ) = @_;
     my $list = $self->list;

@@ -12,25 +12,35 @@ has 'app' => (
 has 'dispatch' => (
     is  => 'rw',
     isa => 'HashRef',
-    default => sub { {
-        escape => sub {
-            my ( $self ) = @_;
-            $self->app->cancel_action;
+    default => sub {
+        return {
+            DA => {
+                escape => sub {
+                    my ( $self ) = @_;
+                    $self->app->cancel_action;
+                },
+                backspace => sub {
+                    my ( $self ) = @_;
+                    $self->app->delete_last_command;
+                },
+                z => sub {
+                    my ( $self ) = @_;
+                    $self->app->fit_screen;
+                },
+            },
+            OT => {
+                backspace => sub {
+                    my ( $self ) = @_;
+                    $self->app->delete_current_path;
+                },
+            },
         },
-        backspace => sub {
-            my ( $self ) = @_;
-            $self->app->delete_last_command;
-        },
-        z => sub {
-            my ( $self ) = @_;
-            $self->app->fit_screen;
-        },
-    } },
+    },
     documentation => 'Key press dispatch',
 );
 
 sub handle {
-    my ( $self, $widget, $event ) = @_;
+    my ( $self, $context, $widget, $event ) = @_;
 
     my $keyval = $event->keyval();
 
@@ -50,8 +60,8 @@ sub handle {
     my $keyname = $code2key->{$keyval};
 
     if ( $keyname ) {
-        if ( $self->dispatch->{$keyname} ) {
-            $self->dispatch->{$keyname}->( $self );
+        if ( $self->dispatch->{$context}->{$keyname} ) {
+            $self->dispatch->{$context}->{$keyname}->( $self );
             return 1;
         }
     }
