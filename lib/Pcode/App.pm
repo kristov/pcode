@@ -299,6 +299,7 @@ sub build_gui {
     $self->da->signal_connect( 'button-press-event' => sub { return $self->button_clicked( @_ ) } );
     $self->da->signal_connect( 'motion-notify-event' => sub { $self->motion_notify( @_ ) } );
     $self->da->signal_connect( 'key-press-event' => sub { $self->keyhandler->handle( 'DA', @_ ) } );
+    $self->da->signal_connect( 'scroll-event' => sub { $self->scroll( @_ ) } );
     $self->da->can_focus( TRUE );
     $self->da->grab_focus;
 
@@ -625,7 +626,7 @@ sub pce_mode_click {
 }
 
 sub zin_mode_click {
-    my ( $self, $point, $snap_point ) = @_;
+    my ( $self ) = @_;
 
     my $x = $self->mouse_x;
     my $y = $self->mouse_y;
@@ -651,7 +652,7 @@ sub zin_mode_click {
 }
 
 sub zot_mode_click {
-    my ( $self, $point, $snap_point ) = @_;
+    my ( $self ) = @_;
     
     my $x = $self->mouse_x;
     my $y = $self->mouse_y;
@@ -662,6 +663,57 @@ sub zot_mode_click {
 
     my $lcx = $x - $hw;
     my $lcy = $y - $hh;
+
+    $self->coord->zoom_out;
+
+    ( $lcx, $lcy ) = $self->scale_from_screen( $lcx, $lcy );
+    my $x_offset = $self->x_offset;
+    my $y_offset = $self->y_offset;
+    $self->x_offset( $x_offset + $lcx );
+    $self->y_offset( $y_offset + $lcy );
+
+    $self->current_path->needs_render( 1 );
+    $self->drill_path->needs_render( 1 );
+    $self->state_change;
+}
+
+sub scroll {
+    my ( $self, $da, $event ) = @_;
+
+    my $direction = $event->direction;
+
+    if ( $direction eq 'up' ) {
+        $self->scroll_in;
+    }
+    else {
+        $self->scroll_out;
+    }
+}
+
+sub scroll_in {
+    my ( $self ) = @_;
+
+    my $lcx = 0;
+    my $lcy = 0;
+
+    $self->coord->zoom_in;
+
+    ( $lcx, $lcy ) = $self->scale_from_screen( $lcx, $lcy );
+    my $x_offset = $self->x_offset;
+    my $y_offset = $self->y_offset;
+    $self->x_offset( $x_offset + $lcx );
+    $self->y_offset( $y_offset + $lcy );
+
+    $self->current_path->needs_render( 1 );
+    $self->drill_path->needs_render( 1 );
+    $self->state_change;
+}
+
+sub scroll_out {
+    my ( $self ) = @_;
+
+    my $lcx = 0;
+    my $lcy = 0;
 
     $self->coord->zoom_out;
 
