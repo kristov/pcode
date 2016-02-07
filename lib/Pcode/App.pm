@@ -714,7 +714,7 @@ sub plugin_click {
 
     $point = $snap_point if $snap_point;
 
-    my $object = $plugin_class->new();
+    my $object = $plugin_class->new( { app => $self } );
     if ( $object->can( 'X' ) && $object->can( 'Y' ) ) {
         $object->X( $point->X );
         $object->Y( $point->Y );

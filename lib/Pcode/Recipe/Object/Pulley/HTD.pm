@@ -2,6 +2,7 @@ package Pcode::Recipe::Object::Pulley::HTD;
 
 use Moose;
 use Math::Trig qw( asin );
+with 'Pcode::Role::Recipe';
 
 use constant PI => 3.14159265;
 
@@ -91,9 +92,9 @@ sub properties {
 }
 
 sub create {
-    my ( $self, $app ) = @_;
+    my ( $self ) = @_;
 
-    my $path = $app->new_empty_path;
+    my $path = $self->new_empty_path;
     $path->name( "New HTD pulley" );
 
     my $X = $self->X;
@@ -113,8 +114,8 @@ sub create {
 
     my @snaps;
 
-    my $outer_circle = $app->create_object( 'snap', 'circle', [ $X, $Y, $ODR ] );
-    my $R1_circle = $app->create_object( 'snap', 'circle', [ $X, $Y, $self->R1_center_radius ] );
+    my $outer_circle = $self->create_object( 'snap', 'circle', [ $X, $Y, $ODR ] );
+    my $R1_circle = $self->create_object( 'snap', 'circle', [ $X, $Y, $self->R1_center_radius ] );
 
     my $first_point;
     my $last_point;
@@ -134,12 +135,12 @@ sub create {
 
         my $x = sprintf( '%0.4f', $r * cos( $rad ) );
         my $y = sprintf( '%0.4f', $r * sin( $rad ) );
-        my $tooth_circle = $app->create_object( 'snap', 'circle', [ $x + $X, $y + $Y, $R1 ] );
+        my $tooth_circle = $self->create_object( 'snap', 'circle', [ $x + $X, $y + $Y, $R1 ] );
 
         my @points = $R1_circle->intersect( $tooth_circle );
 
         if ( $last_point ) {
-            my $inter_tooth = $app->create_object( 'command', 'arc', [
+            my $inter_tooth = $self->create_object( 'command', 'arc', [
                 $last_point->X, $last_point->Y,
                 $right_conn->X, $right_conn->Y,
                 $ODR, 0,
@@ -149,21 +150,21 @@ sub create {
 
         my ( $closest, $farthest ) = $right_conn->order_by_distance_asc( $points[0], $points[1] );
 
-        my $lead_in_arc = $app->create_object( 'command', 'arc', [
+        my $lead_in_arc = $self->create_object( 'command', 'arc', [
             $right_conn->X, $right_conn->Y,
             $closest->X, $closest->Y,
             $R0, 0,
         ] );
         $path->append_command( $lead_in_arc );
 
-        my $tooth_arc = $app->create_object( 'command', 'arc', [
+        my $tooth_arc = $self->create_object( 'command', 'arc', [
             $closest->X, $closest->Y,
             $farthest->X, $farthest->Y,
             $R1, 1,
         ] );
         $path->append_command( $tooth_arc );
 
-        my $lead_out_arc = $app->create_object( 'command', 'arc', [
+        my $lead_out_arc = $self->create_object( 'command', 'arc', [
             $farthest->X, $farthest->Y,
             $left_conn->X, $left_conn->Y,
             $R0, 0,
@@ -173,14 +174,14 @@ sub create {
         $last_point = $left_conn;
     }
 
-    my $inter_tooth = $app->create_object( 'command', 'arc', [
+    my $inter_tooth = $self->create_object( 'command', 'arc', [
         $last_point->X, $last_point->Y,
         $first_point->X, $first_point->Y,
         $ODR, 0,
     ] );
     $path->append_command( $inter_tooth );
 
-    $app->finish_editing_path;
+    $self->finish_editing_path;
 }
 
 sub connect_point_offset {
