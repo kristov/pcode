@@ -77,6 +77,18 @@ sub stringify {
     return join( "\n", @commands );
 }
 
+sub serialize {
+    my ( $self ) = @_;
+
+    my @commands;
+    $self->foreach( sub {
+        my ( $command ) = @_;
+        push @commands, $command->serialize;
+    } );
+
+    return \@commands;
+}
+
 sub bounding_points {
     my ( $self ) = @_;
 

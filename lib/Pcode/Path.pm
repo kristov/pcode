@@ -460,21 +460,13 @@ sub render_tool_paths {
 
 sub serialize {
     my ( $self ) = @_;
-
-    my $objects = [];
-
-    $self->commands->foreach( sub {
-        my ( $command ) = @_;
-        push @{ $objects }, $command->serialize;
-    } );
-
     return {
         name        => $self->name,
         tool_radius => $self->tool_radius,
         depth       => $self->depth,
         overcut     => $self->overcut,
         flip        => $self->flip,
-        commands    => $objects,
+        commands    => $self->commands->serialize,
     };
 }
 
