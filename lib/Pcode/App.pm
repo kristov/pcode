@@ -776,10 +776,29 @@ sub plugin_click {
     return if !$props;
 
     if ( $props ) {
-        $self->prop_box->show_props( $props );
+        $self->show_modal_props( $props );
     }
 
     $object->create( $self );
+}
+
+sub show_modal_props {
+    my ( $self, $props ) = @_;
+
+    my $title = "Object properties: " . $props->title;
+    my $dialog = Gtk2::Dialog->new(
+        $title,
+        $self->win,
+        [ qw( modal destroy-with-parent ) ],
+        'gtk-ok' => 'ok'
+    );
+
+    $dialog->get_content_area->add( $props->widget );
+    $dialog->set_default_response( 'ok' );
+    $dialog->show_all;
+
+    my $response = $dialog->run;
+    $dialog->destroy;
 }
 
 sub modal_edit_window {

@@ -44,6 +44,7 @@ sub generate_gcode {
     $self->foreach( sub {
         my ( $path ) = @_;
         my $gcode_obj = $path->generate_gcode( $machine_center );
+        return if !$gcode_obj;
         $full_gcode .= $gcode_obj->generate;
         $full_gcode .= "\n";
         $test_gcode .= $gcode_obj->generate_test;

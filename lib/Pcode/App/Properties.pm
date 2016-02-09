@@ -28,6 +28,11 @@ sub BUILD {
     $self->widget( $self->edit_properties );
 }
 
+sub title {
+    my ( $self ) = @_;
+    return ref $self->object;
+}
+
 sub edit_properties {
     my ( $self ) = @_;
 
