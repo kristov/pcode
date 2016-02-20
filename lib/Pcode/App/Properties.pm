@@ -87,6 +87,9 @@ sub edit_properties {
             elsif ( $property->{type} eq 'Str' ) {
                 $widget = $self->string_widget( $obj, $name, $value, $property->{hook} );
             }
+            elsif ( $property->{type} eq 'File' ) {
+                $widget = $self->file_widget( $obj, $name, $value, $property->{hook} );
+            }
             $table->attach( $label, 0, 1, $count, $count + 1, [ 'fill' ], [ 'fill' ], 5, 5 );
             $table->attach( $widget, 1, 2, $count, $count + 1, [ 'fill' ], [ 'fill' ], 5, 5 );
             $count++;
@@ -170,6 +173,43 @@ sub string_widget {
     }, $data );
 
     return $entry;
+}
+
+sub file_widget {
+    my ( $self, $object, $name, $value, $hook ) = @_;
+
+    my $data = { object => $object, name => $name, hook => $hook };
+
+    my $open = Gtk2::Button->new( '_Open' );
+
+    $open->signal_connect('clicked' => sub {
+        my ( $widget, $info ) = @_;
+
+        my $file_chooser = Gtk2::FileChooserDialog->new( 
+            'Pick a file',
+            undef,
+            'open',
+            'gtk-cancel' => 'cancel',
+            'gtk-ok'     => 'ok'
+        );
+
+        my $object = $info->{object};
+        my $name = $info->{name};
+        my $value;
+
+        if ( $file_chooser->run eq 'ok' ) {
+            $value = $file_chooser->get_filename;
+        }
+        $file_chooser->destroy;
+
+        $object->$name( $value );
+        if ( $info->{hook} ) {
+            $info->{hook}->( $object );
+        }
+        $self->app->state_change;
+    }, $data );
+
+    return $open;
 }
 
 1;

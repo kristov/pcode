@@ -87,30 +87,39 @@ sub build_tree {
     $self->tree_view->set_model( undef );
     $tree_store->clear;
 
-    $self->app->paths->foreach( sub {
-        my ( $path ) = @_;
+    $self->app->path_groups->foreach( sub {
+        my ( $path_group ) = @_;
+        
+        my $path_group_iter = $tree_store->append( undef );
+        $tree_store->set( $path_group_iter, 0 => $path_group->name );
+        $tree_store->set( $path_group_iter, 1 => $path_group );
 
-        my $iter = $tree_store->append( undef );
-        $tree_store->set( $iter, 0 => $path->name );
-        $tree_store->set( $iter, 1 => $path );
+        $path_group->paths->foreach( sub {
+            my ( $path ) = @_;
 
-        $path->commands->foreach( sub {
-            my ( $command ) = @_;
+            my $path_iter = $tree_store->append( $path_group_iter );
+            $tree_store->set( $path_iter, 0 => $path->name );
+            $tree_store->set( $path_iter, 1 => $path );
 
-            my $data = $command->serialize;
-            #my $str = "$data";
-            my $name = $data->[0];
-            my @values = @{ $data->[1] };
-            @values = map { defined $_ ? sprintf( '%0.2f', $_ ) : 0 } @values;
-            my $str = sprintf( '%s(%s)', $data->[0], join( ',', @values ) );
+            $path->commands->foreach( sub {
+                my ( $command ) = @_;
 
-            my $iter_child = $tree_store->append( $iter );
-            $tree_store->set( $iter_child, 0 => "$str" );
-            $tree_store->set( $iter_child, 1 => $command );
+                my $data = $command->serialize;
+                #my $str = "$data";
+                my $name = $data->[0];
+                my @values = @{ $data->[1] };
+                @values = map { defined $_ ? sprintf( '%0.2f', $_ ) : 0 } @values;
+                my $str = sprintf( '%s(%s)', $data->[0], join( ',', @values ) );
+
+                my $command_iter = $tree_store->append( $path_iter );
+                $tree_store->set( $command_iter, 0 => "$str" );
+                $tree_store->set( $command_iter, 1 => $command );
+            } );
         } );
     } );
 
     $self->tree_view->set_model( $tree_store );
+    $self->tree_view->expand_all;
 }
 
 1;

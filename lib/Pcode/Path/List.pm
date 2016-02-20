@@ -1,4 +1,4 @@
-package Pcode::PathList;
+package Pcode::Path::List;
 
 use Moose;
 use Pcode::Path;

@@ -8,9 +8,15 @@ has 'app' => (
     required => 1,
 );
 
-sub new_empty_path {
+has 'path_group' => (
+    is => 'ro',
+    isa => 'Pcode::Path::Group',
+    default => sub { return Pcode::Path::Group->new; },
+);
+
+sub new_path {
     my ( $self ) = @_;
-    return $self->app->new_empty_path;
+    return $self->path_group->new_path;
 }
 
 sub create_object {
@@ -18,9 +24,10 @@ sub create_object {
     return $self->app->create_object( $type, $command, $args );
 }
 
-sub finish_editing_path {
+sub finish_editing {
     my ( $self ) = @_;
-    return $self->app->finish_editing_path;
+    $self->app->add_path_group( $self->path_group );
+    $self->app->finish_editing_path;
 }
 
 1;

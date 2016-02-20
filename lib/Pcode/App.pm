@@ -9,7 +9,8 @@ use Glib qw( TRUE FALSE );
 use Pcode::Point;
 use Pcode::Path;
 use Pcode::DrillPath;
-use Pcode::PathList;
+use Pcode::Path::List;
+use Pcode::Path::Group::List;
 use Pcode::SnapList;
 use Pcode::Command::Line;
 use Pcode::Command::Arc;
@@ -141,12 +142,6 @@ has 'snaps' => (
     documentation => "The snap list",
 );
 
-has 'current_path' => (
-    is  => 'rw',
-    isa => 'Pcode::Path',
-    documentation => "Working path",
-);
-
 has 'drill_path' => (
     is  => 'rw',
     isa => 'Pcode::DrillPath',
@@ -154,10 +149,10 @@ has 'drill_path' => (
     documentation => "Drill path",
 );
 
-has 'paths' => (
+has 'path_groups' => (
     is  => 'rw',
-    isa => 'Pcode::PathList',
-    default => sub { Pcode::PathList->new(); },
+    isa => 'Pcode::Path::Group::List',
+    default => sub { Pcode::Path::Group::List->new(); },
     documentation => "List of paths",
 );
 
@@ -183,6 +178,13 @@ has 'state' => (
     is  => 'rw',
     isa => 'Pcode::App::File::Native',
     documentation => 'Save app state in a file',
+);
+
+has 'latest_state_version' => (
+    is  => 'rw',
+    isa => 'Str',
+    default => 'V2',
+    documentation => 'Version to save new files',
 );
 
 has 'file' => (
@@ -324,29 +326,11 @@ sub load_file {
     elsif ( $self->state->working_file_exists ) {
         $self->state->load_working_file;
     }
-    else {
-        my $current_path = $self->paths->new_path;
-        $self->current_path( $current_path );
-    }
-
-    if ( !$self->current_path ) {
-        if ( $self->paths->nr_paths > 0 ) {
-            my $path = $self->paths->first;
-            $path->needs_render( 1 );
-            $self->current_path( $path );
-        }
-    }
 }
 
-sub new_empty_path {
+sub new_path_group {
     my ( $self, $name ) = @_;
-    return $self->current_path if $self->current_path->nr_commands == 0;
-    
-    my $new_path = $self->paths->new_path;
-    $self->name_path( $new_path, $name );
-    $self->current_path( $new_path );
-
-    return $new_path;
+    return $self->path_groups->new_path_group;
 }
 
 sub cancel_action {
@@ -362,36 +346,39 @@ sub cancel_action {
 
 sub delete_last_command {
     my ( $self ) = @_;
-    $self->current_path->delete_last;
-    # Wrong, always assumes the current_path is the last
-    if ( $self->current_path->nr_commands == 0 ) {
-        if ( $self->paths->nr_paths > 1 ) {
-            my $prev_path = $self->paths->delete_last_path;
-            $self->current_path( $prev_path );
-        }
-    }
+    $self->path_groups->delete_last_command;
     $self->state_change;
 }
 
 sub delete_current_path {
     my ( $self ) = @_;
-
-    my $current_path = $self->current_path;
-    return unless $current_path;
-
-    my $prev_path = $self->paths->delete_path( $current_path );
-
-    if ( $prev_path ) {
-        $self->current_path( $prev_path );
-        $self->current_path->needs_render( 1 );
-    }
-
+    $self->path_groups->delete_current_path;
     $self->state_change;
+}
+
+sub current_path_group {
+    my ( $self ) = @_;
+    return $self->path_groups->current_path_group;
+}
+
+sub set_current_path_group {
+    my ( $self, $path_group ) = @_;
+    $self->path_groups->set_current_path_group( $path_group );
+}
+
+sub current_path {
+    my ( $self ) = @_;
+    return $self->path_groups->current_path;
+}
+
+sub set_current_path {
+    my ( $self, $path, $path_group ) = @_;
+    $self->path_groups->set_current_path( $path, $path_group );
 }
 
 sub clear_all {
     my ( $self ) = @_;
-    $self->current_path->clear;
+    $self->path_groups->clear_all;
     $self->state_change;
 }
 
@@ -747,17 +734,25 @@ sub translate_everything {
 sub object_selected {
     my ( $self, $object, $parent_object ) = @_;
 
-    if ( $object ) {
-        if ( $parent_object ) {
-            $self->current_path->select( $object );
-            $self->modal_edit_window( $object );
-            $self->invalidate;
-        }
-        else {
-            $self->modal_edit_window( $object );
-            $self->current_path( $object );
-            $self->invalidate;
-        }
+    if ( ref $object =~ 'Pcode::Command' ) {
+        $self->current_path->select( $object );
+        $self->modal_edit_window( $object );
+        $self->invalidate;
+        return;
+    }
+
+    if ( ref $object eq 'Pcode::Path' ) {
+        $self->set_current_path( $object, $parent_object );
+        $self->modal_edit_window( $object );
+        $self->invalidate;
+        return;
+    }
+
+    if ( ref $object eq 'Pcode::Path::Group' ) {
+        $self->set_current_path_group( $object );
+        $self->modal_edit_window( $object );
+        $self->invalidate;
+        return;
     }
 }
 
@@ -817,9 +812,7 @@ sub add_new_command_to_path {
 
     if ( $self->current_path->last_command ) {
         if ( !$self->current_path->last_command->end->equal( $self->start_point ) ) {
-            my $new_path = $self->paths->new_path;
-            $self->name_path( $new_path );
-            $self->current_path( $new_path );
+            $self->path_groups->new_path;
         }
     }
 
@@ -834,27 +827,9 @@ sub finish_editing_path {
     $self->state_change;
 }
 
-sub name_path {
-    my ( $self, $new_path, $name ) = @_;
-    if ( $name ) {
-        return $new_path->name( $name );
-    }
-    my @numbers;
-    $self->paths->foreach( sub {
-        my ( $path ) = @_;
-        if ( $path->name && $path->name =~ /\s([0-9]+)$/ ) {
-            push @numbers, $1;
-        }
-    } );
-    if ( @numbers ) {
-        my @sorted = sort { $b <=> $a } @numbers;
-        my $number = $sorted[0];
-        $number++;
-        $new_path->name( "Path $number" );
-    }
-    else {
-        $new_path->name( "Path 0" );
-    }
+sub add_path_group {
+    my ( $self, $path_group ) = @_;
+    $self->path_groups->add_path_group( $path_group );
 }
 
 sub create_surface {
@@ -1117,7 +1092,7 @@ sub translate_from_screen_coords {
 
 sub generate_gcode {
     my ( $self ) = @_;
-    my ( $full_gcode, $test_gcode ) = $self->paths->generate_gcode( $self->machine_center );
+    my ( $full_gcode, $test_gcode ) = $self->path_groups->generate_gcode( $self->machine_center );
     $self->gcode_window->show_gcode( $full_gcode, $test_gcode );
 }
 
