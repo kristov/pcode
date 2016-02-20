@@ -734,21 +734,21 @@ sub translate_everything {
 sub object_selected {
     my ( $self, $object, $parent_object ) = @_;
 
-    if ( ref $object =~ 'Pcode::Command' ) {
+    if ( ref( $object ) =~ /Pcode::Command/ ) {
         $self->current_path->select( $object );
         $self->modal_edit_window( $object );
         $self->invalidate;
         return;
     }
 
-    if ( ref $object eq 'Pcode::Path' ) {
+    if ( ref( $object ) eq 'Pcode::Path' ) {
         $self->set_current_path( $object, $parent_object );
         $self->modal_edit_window( $object );
         $self->invalidate;
         return;
     }
 
-    if ( ref $object eq 'Pcode::Path::Group' ) {
+    if ( ref( $object ) eq 'Pcode::Path::Group' ) {
         $self->set_current_path_group( $object );
         $self->modal_edit_window( $object );
         $self->invalidate;
@@ -1012,7 +1012,7 @@ sub zoom_to_fit {
     my ( $self ) = @_;
 
     my ( $smin, $smax ) = $self->snaps->bounding_points;
-    my ( $pmin, $pmax ) = $self->paths->bounding_points;
+    my ( $pmin, $pmax ) = $self->path_groups->bounding_points;
 
     my $minx;
     my $miny;

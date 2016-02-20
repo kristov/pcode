@@ -60,6 +60,15 @@ sub first_path {
     return $self->current_path_group->first;
 }
 
+sub clear_all {
+    my ( $self ) = @_;
+    $self->foreach( sub {
+        my ( $path_group ) = @_;
+        $path_group->clear_all;
+    } );
+    $self->clear;
+}
+
 sub translate {
     my ( $self, $x, $y ) = @_;
     $self->foreach( sub {

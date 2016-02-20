@@ -23,6 +23,16 @@ has '_current_path' => (
     documentation => "Working path",
 );
 
+sub properties {
+    return [
+        {
+            name  => 'name',
+            label => 'Name',
+            type  => 'Str',
+        },
+    ];
+}
+
 sub current_path {
     my ( $self ) = @_;
     if ( !$self->_current_path ) {
@@ -83,9 +93,10 @@ sub delete_current_path {
 
 sub clear_all {
     my ( $self ) = @_;
-    if ( $self->_current_path ) {
-        $self->_current_path->clear;
-    }
+    $self->paths->foreach( sub {
+        my ( $path ) = @_;
+        $path->clear;
+    } );
 }
 
 sub bounding_points {
@@ -96,7 +107,7 @@ sub bounding_points {
     my $maxx;
     my $maxy;
 
-    return if $self->count == 0;
+    return if $self->paths->count == 0;
 
     $self->paths->foreach( sub {
         my ( $path ) = @_;
