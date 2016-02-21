@@ -481,7 +481,7 @@ sub translate {
 }
 
 sub generate_gcode {
-    my ( $self, $machine_center ) = @_;
+    my ( $self, $machine_center, $group_name ) = @_;
     return $self->tool_paths->generate_gcode( {
         offset  => {
             X => $machine_center->X,
@@ -489,7 +489,7 @@ sub generate_gcode {
         },
         depth   => $self->depth,
         overcut => $self->overcut,
-        name    => $self->name,
+        name    => $self->name . " (in group: " . $group_name . ")",
     } );
 }
 

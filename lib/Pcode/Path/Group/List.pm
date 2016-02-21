@@ -39,6 +39,13 @@ sub set_current_path {
     $self->_current_path_group->set_current_path( $path );
 }
 
+sub delete_last_command {
+    my ( $self ) = @_;
+    if ( $self->_current_path_group ) {
+        $self->_current_path_group->delete_last_command;
+    }
+}
+
 sub new_path {
     my ( $self ) = @_;
     return $self->current_path_group->new_path;
@@ -83,14 +90,19 @@ sub generate_gcode {
     my $full_gcode = "";
     my $test_gcode = "";
 
+    # TODO: Needs more thought in general, as should not be
+    # doing Gcode comments in here...
+
     $self->foreach( sub {
         my ( $path_group ) = @_;
-        my $gcode_obj = $path_group->generate_gcode( $machine_center );
-        return if !$gcode_obj;
-        $full_gcode .= $gcode_obj->generate;
-        $full_gcode .= "\n";
-        $test_gcode .= $gcode_obj->generate_test;
-        $test_gcode .= "\n";
+        my @gcode_objects = $path_group->generate_gcode( $machine_center, $path_group->name );
+        for my $gcode_obj ( @gcode_objects ) {
+            return if !$gcode_obj;
+            $full_gcode .= $gcode_obj->generate;
+            $full_gcode .= "\n";
+            $test_gcode .= $gcode_obj->generate_test;
+            $test_gcode .= "\n";
+        }
     } );
 
     return ( $full_gcode, $test_gcode );

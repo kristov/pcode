@@ -68,14 +68,22 @@ sub new_path {
 
 sub delete_last_command {
     my ( $self ) = @_;
-    $self->current_path->delete_last;
-    # Wrong, always assumes the current_path is the last
-    if ( $self->current_path->nr_commands == 0 ) {
-        if ( $self->paths->nr_paths > 1 ) {
-            my $prev_path = $self->paths->delete_last_path;
-            $self->current_path( $prev_path );
+
+    if ( $self->_current_path ) {
+        $self->_current_path->delete_last;
+        # Wrong, always assumes the current_path is the last
+        if ( $self->_current_path->nr_commands == 0 ) {
+            if ( $self->paths->nr_paths > 1 ) {
+                my $prev_path = $self->paths->delete_last_path;
+                $self->_current_path( $prev_path );
+            }
         }
     }
+}
+
+sub is_empty {
+    my ( $self ) = @_;
+    return $self->paths->nr_paths == 0;
 }
 
 sub delete_current_path {
@@ -140,6 +148,19 @@ sub serialize {
         name  => $self->name,
         paths => $paths_serialized,
     };
+}
+
+sub generate_gcode {
+    my ( $self, $machine_center, $group_name ) = @_;
+
+    my @gcode_objects;
+
+    $self->paths->foreach( sub {
+        my ( $path ) = @_;
+        push @gcode_objects, $path->generate_gcode( $machine_center, $group_name );
+    } );
+
+    return @gcode_objects;
 }
 
 1;
