@@ -49,7 +49,7 @@ sub edit_properties {
     }
     if ( $object->can( 'properties' ) ) {
         push @sections, {
-            header     => 'Start point',
+            header     => 'Properties',
             object     => $object,
             properties => $object->properties,
         };
@@ -64,6 +64,7 @@ sub edit_properties {
 
     my $rows = 0;
     for my $section ( @sections ) {
+        $rows++;
         for my $property ( @{ $section->{properties} } ) {
             $rows++;
         }
@@ -72,11 +73,19 @@ sub edit_properties {
 
     my $count = 0;
     for my $section ( @sections ) {
+
+        my $header = $section->{header};
+        my $header_label = Gtk2::Label->new( $header || '<unknown>' );
+        $table->attach( $header_label, 0, 2, $count, $count + 1, [ 'fill' ], [ 'fill' ], 5, 5 );
+        $count++;
+
         my $obj = $section->{object};
         for my $property ( @{ $section->{properties} } ) {
+
             my $name = $property->{name};
             my $label = Gtk2::Label->new( $property->{label} || '<unknown>' );
             my $value = $obj->$name();
+
             my $widget;
             if ( $property->{type} eq 'Num' ) {
                 $widget = $self->num_widget( $obj, $name, $value, $property->{hook} );
