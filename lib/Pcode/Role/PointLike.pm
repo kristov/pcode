@@ -79,7 +79,11 @@ sub angle_between {
 
 sub equal {
     my ( $self, $point ) = @_;
-    return ( $self->X == $point->X && $self->Y == $point->Y && $self->Z == $point->Z ) ? 1 : 0;
+    return (
+        $self->X == $point->X &&
+        $self->Y == $point->Y &&
+        $self->Z == $point->Z
+    ) ? 1 : 0;
 }
 
 sub translate {
