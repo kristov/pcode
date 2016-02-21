@@ -111,6 +111,7 @@ sub properties {
             type  => 'Bool',
             hook  => sub {
                 my ( $self ) = @_;
+                $self->regenerate_tool_paths;
                 $self->needs_render( 1 );
             },
         },
