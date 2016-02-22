@@ -23,6 +23,14 @@ sub current_path_group {
     return $self->_current_path_group;
 }
 
+sub paths_to_render {
+    my ( $self ) = @_;
+    if ( $self->_current_path_group ) {
+        return $self->_current_path_group->paths_to_render;
+    }
+    return;
+}
+
 sub set_current_path_group {
     my ( $self, $path_group ) = @_;
     $self->_current_path_group( $path_group );

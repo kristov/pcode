@@ -86,6 +86,31 @@ sub is_empty {
     return $self->paths->nr_paths == 0;
 }
 
+sub paths_to_render {
+    my ( $self ) = @_;
+
+    my $current_path = $self->_current_path;
+    my $current_path_addr = $current_path ? "$current_path" : "";
+
+    my @paths;
+
+    $self->paths->foreach( sub {
+        my ( $path ) = @_;
+        my $path_addr = "$path";
+        if ( $path_addr ne $current_path_addr ) {
+            $path->greyed( 1 );
+        }
+        else {
+            $path->greyed( 0 );
+        }
+        push @paths, $path;
+    } );
+
+    push @paths, $current_path if $current_path;
+
+    return @paths;
+}
+
 sub delete_current_path {
     my ( $self ) = @_;
 

@@ -859,8 +859,9 @@ sub do_cairo_drawing {
         $self->snaps->render( $self, $cr );
     }
 
-    if ( $self->current_path ) {
-        $self->current_path->render( $self, $cr );
+    my @paths_to_render = $self->path_groups->paths_to_render;
+    for my $path ( @paths_to_render ) {
+        $path->render( $self, $cr );
     }
 
     if ( $self->drill_path ) {

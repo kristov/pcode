@@ -3,6 +3,8 @@ package Pcode::Role::Layer;
 use Moose::Role;
 use Cairo;
 
+use constant GREYED_ALPHA => 0.3;
+
 has 'needs_render' => (
     is => 'rw',
     isa => 'Bool',
@@ -14,6 +16,13 @@ has 'surface' => (
     is  => 'rw',
     isa => 'Cairo::ImageSurface',
     documentation => "Cairo surface we are drawing to",
+);
+
+has 'greyed' => (
+    is => 'rw',
+    isa => 'Bool',
+    default => 0,
+    documentation => 'Grey this layer when painting',
 );
 
 sub create_surface {
@@ -38,7 +47,12 @@ sub render {
     }
 
     $parent_cr->set_source_surface( $surface, 0, 0 );
-    $parent_cr->paint;
+    if ( $self->greyed ) {
+        $parent_cr->paint_with_alpha( GREYED_ALPHA );
+    }
+    else {
+        $parent_cr->paint;
+    }
 }
 
 1;
