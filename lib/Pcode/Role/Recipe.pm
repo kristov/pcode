@@ -11,12 +11,21 @@ has 'app' => (
 has 'path_group' => (
     is => 'ro',
     isa => 'Pcode::Path::Group',
-    default => sub { return Pcode::Path::Group->new; },
+    lazy => 1,
+    builder => '_build_path_group',
+    documentation => 'The path group for the object',
 );
 
-sub new_path {
+sub _build_path_group {
     my ( $self ) = @_;
-    return $self->path_group->new_path;
+    my $name = "Unnamed object";
+    $name = $self->name if $self->can( 'name' );
+    return Pcode::Path::Group->new( { name => $name } );
+}
+
+sub new_path {
+    my ( $self, $name ) = @_;
+    return $self->path_group->new_path( $name );
 }
 
 sub create_object {

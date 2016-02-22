@@ -20,6 +20,20 @@ has 'pitch' => (
     documentation => 'The pitch of the belt in mm',
 );
 
+has 'create_center_hole' => (
+    is  => 'rw',
+    isa => 'Bool',
+    default => 0,
+    documentation => 'Create a center hole',
+);
+
+has 'center_hole_diameter' => (
+    is  => 'rw',
+    isa => 'Num',
+    default => 5,
+    documentation => 'Center hole size',
+);
+
 has 'segments' => (
     is      => 'rw',
     isa     => 'Int',
@@ -65,6 +79,13 @@ has 'Y' => (
     documentation => 'Y axis location',
 );
 
+has 'name' => (
+    is      => 'ro',
+    isa     => 'Str',
+    default => 'HTD Pulley',
+    documentation => 'Name of the path group',
+);
+
 sub properties {
     my ( $self ) = @_;
     return [
@@ -76,6 +97,16 @@ sub properties {
         {
             name  => 'pitch',
             label => 'Tooth Pitch',
+            type  => 'Num',
+        },
+        {
+            name  => 'create_center_hole',
+            label => 'Create a center hole?',
+            type  => 'Bool',
+        },
+        {
+            name  => 'center_hole_diameter',
+            label => 'Center hole diameter',
             type  => 'Num',
         },
         {
@@ -93,9 +124,52 @@ sub properties {
 
 sub create {
     my ( $self ) = @_;
+    $self->_create_pulley_teeth;
+    $self->_create_center_hole if $self->create_center_hole;
+    $self->finish_editing;
+}
 
-    my $path = $self->new_empty_path;
-    $path->name( "New HTD pulley" );
+sub _create_center_hole {
+    my ( $self ) = @_;
+
+    my $path = $self->new_path( "Center hole" );
+
+    my $X = $self->X;
+    my $Y = $self->Y;
+
+    my $d = $self->center_hole_diameter;
+    my $r = $d / 2;
+
+    my $top_point = Pcode::Point->new( {
+        X => $X,
+        Y => $Y - $r,
+    } );
+
+    my $bottom_point = Pcode::Point->new( {
+        X => $X,
+        Y => $Y + $r,
+    } );
+
+    my $arc1 = $self->create_object( 'command', 'arc', [
+        $top_point->X, $top_point->Y,
+        $bottom_point->X, $bottom_point->Y,
+        $r, 1
+    ] );
+
+    my $arc2 = $self->create_object( 'command', 'arc', [
+        $bottom_point->X, $bottom_point->Y,
+        $top_point->X, $top_point->Y,
+        $r, 1
+    ] );
+
+    $path->append_command( $arc1 );
+    $path->append_command( $arc2 );
+}
+
+sub _create_pulley_teeth {
+    my ( $self ) = @_;
+    
+    my $path = $self->new_path( "Pulley teeth" );
 
     my $X = $self->X;
     my $Y = $self->Y;
@@ -180,8 +254,6 @@ sub create {
         $ODR, 0,
     ] );
     $path->append_command( $inter_tooth );
-
-    $self->finish_editing_path;
 }
 
 sub connect_point_offset {

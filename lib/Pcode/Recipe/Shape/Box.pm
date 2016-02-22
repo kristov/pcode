@@ -33,6 +33,13 @@ has 'Y' => (
     documentation => 'Y axis location',
 );
 
+has 'name' => (
+    is      => 'ro',
+    isa     => 'Str',
+    default => 'Box',
+    documentation => 'Path group name',
+);
+
 sub properties {
     my ( $self ) = @_;
     return [
@@ -62,8 +69,7 @@ sub properties {
 sub create {
     my ( $self ) = @_;
 
-    my $path = $self->new_empty_path;
-    $path->name( "Box" );
+    my $path = $self->new_path( "Box" );
 
     my $X = $self->X;
     my $Y = $self->Y;
@@ -81,7 +87,7 @@ sub create {
     $path->append_command( $bot );
     $path->append_command( $lef );
 
-    $self->finish_editing_path;
+    $self->finish_editing;
 }
 
 1;

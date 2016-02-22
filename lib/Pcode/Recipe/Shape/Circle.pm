@@ -26,6 +26,13 @@ has 'Y' => (
     documentation => 'Y axis location',
 );
 
+has 'name' => (
+    is      => 'ro',
+    isa     => 'Str',
+    default => 'Circle',
+    documentation => 'Path group name',
+);
+
 sub properties {
     my ( $self ) = @_;
     return [
@@ -50,8 +57,7 @@ sub properties {
 sub create {
     my ( $self ) = @_;
 
-    my $path = $self->new_empty_path;
-    $path->name( "Circle" );
+    my $path = $self->new_path( "Circle" );
 
     my $X = $self->X;
     my $Y = $self->Y;
@@ -84,7 +90,7 @@ sub create {
     $path->append_command( $arc1 );
     $path->append_command( $arc2 );
 
-    $self->finish_editing_path;
+    $self->finish_editing;
 }
 
 1;
