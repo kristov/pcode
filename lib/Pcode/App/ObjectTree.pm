@@ -79,6 +79,18 @@ sub BUILD {
     $self->widget( $sw );
 }
 
+sub selected_object {
+    my ( $self ) = @_;
+
+    my $selection = $self->tree_view->get_selection;
+
+    my ( $model, $iter ) = $selection->get_selected;
+    if ( $iter ) {
+        my $object = $model->get( $iter, 1 );
+        return $object if $object;
+    }
+}
+
 sub build_tree {
     my ( $self ) = @_;
 

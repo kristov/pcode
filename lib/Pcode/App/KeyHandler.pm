@@ -31,7 +31,7 @@ has 'dispatch' => (
             OT => {
                 backspace => sub {
                     my ( $self ) = @_;
-                    $self->app->delete_current_path;
+                    $self->app->delete_selected_object;
                 },
             },
         },
