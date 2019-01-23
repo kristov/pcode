@@ -92,7 +92,7 @@ sub properties {
         {
             name  => 'teeth',
             label => 'Nr. Teeth',
-            type  => 'Num',
+            type  => 'Int',
         },
         {
             name  => 'pitch',

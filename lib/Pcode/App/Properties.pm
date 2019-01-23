@@ -87,6 +87,9 @@ sub edit_properties {
             my $value = $obj->$name();
 
             my $widget;
+            if ( $property->{type} eq 'Int' ) {
+                $widget = $self->int_widget( $obj, $name, $value, $property->{hook} );
+            }
             if ( $property->{type} eq 'Num' ) {
                 $widget = $self->num_widget( $obj, $name, $value, $property->{hook} );
             }
@@ -106,6 +109,34 @@ sub edit_properties {
     }
 
     return $table;
+}
+
+sub int_widget {
+    my ( $self, $object, $name, $value, $hook ) = @_;
+
+    my $adjustment = Gtk2::Adjustment->new( $value, 0, 1000, 1, 1, 0 );
+    my $spin = Gtk2::SpinButton->new( $adjustment, 1, 2 );
+
+    my $data = { object => $object, name => $name, hook => $hook };
+
+    $adjustment->signal_connect( value_changed => sub {
+        my ( $widget, $info ) = @_;
+
+        my $value = $widget->get_value();
+        my $object = $info->{object};
+        my $name = $info->{name};
+
+        my $set_value = $object->$name( $value );
+        if ( $set_value != $value ) {
+            $widget->set_value( $set_value );
+        }
+        if ( $info->{hook} ) {
+            $info->{hook}->( $object );
+        }
+        $self->app->state_change;
+    }, $data );
+
+    return $spin;
 }
 
 sub num_widget {
