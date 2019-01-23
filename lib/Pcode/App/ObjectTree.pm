@@ -96,6 +96,58 @@ sub build_tree {
 
     my $tree_store = $self->tree_store;
 
+    my %existing_paths;
+    $self->app->paths->foreach( sub {
+        my ( $path ) = @_;
+
+        $existing_paths{$path->name} = {
+            path     => $path,
+            commands => {},
+        };
+
+        $path->commands->foreach( sub {
+            my ( $command ) = @_;
+            my $str = to_string( $command->serialize );
+            $existing_paths{$path->name}->{commands}->{$str} = $command;
+        } );
+    } );
+
+
+
+    $self->app->paths->foreach( sub {
+        my ( $path ) = @_;
+
+        my $iter = $tree_store->append( undef );
+        $tree_store->set( $iter, 0 => $path->name );
+        $tree_store->set( $iter, 1 => $path );
+
+        $path->commands->foreach( sub {
+            my ( $command ) = @_;
+
+            my $str = to_string( $command->serialize );
+
+            my $iter_child = $tree_store->append( $iter );
+            $tree_store->set( $iter_child, 0 => "$str" );
+            $tree_store->set( $iter_child, 1 => $command );
+        } );
+    } );
+
+    $self->tree_view->set_model( $tree_store );
+}
+
+sub to_string {
+    my ( $data ) = @_;
+    my $name = $data->[0];
+    my @values = @{ $data->[1] };
+    @values = map { defined $_ ? sprintf( '%0.2f', $_ ) : 0 } @values;
+    return sprintf( '%s(%s)', $data->[0], join( ',', @values ) );
+}
+
+sub _build_tree {
+    my ( $self ) = @_;
+
+    my $tree_store = $self->tree_store;
+
     $self->tree_view->set_model( undef );
     $tree_store->clear;
 
